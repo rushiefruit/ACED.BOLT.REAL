@@ -1,0 +1,50 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import type { LeaderboardEntry } from '../types';
+
+export function useLeaderboard() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('xp_transactions')
+      .select('user_id, amount');
+
+    if (!data) { setLoading(false); return; }
+
+    const xpMap: Record<string, number> = {};
+    for (const tx of data) {
+      xpMap[tx.user_id] = (xpMap[tx.user_id] ?? 0) + tx.amount;
+    }
+
+    const userIds = Object.keys(xpMap);
+    if (userIds.length === 0) { setLoading(false); return; }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_emoji, streak_count, school')
+      .in('id', userIds);
+
+    const entries: LeaderboardEntry[] = (profiles ?? []).map((p, idx) => ({
+      user_id: p.id,
+      full_name: p.full_name ?? 'Student',
+      avatar_emoji: p.avatar_emoji ?? '🎓',
+      total_xp: xpMap[p.id] ?? 0,
+      streak_count: p.streak_count ?? 0,
+      school: p.school,
+      rank: idx + 1,
+    }));
+
+    entries.sort((a, b) => b.total_xp - a.total_xp);
+    entries.forEach((e, i) => { e.rank = i + 1; });
+
+    setEntries(entries);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchLeaderboard(); }, [fetchLeaderboard]);
+
+  return { entries, loading, fetchLeaderboard };
+}

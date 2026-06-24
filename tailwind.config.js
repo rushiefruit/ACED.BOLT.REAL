@@ -1,0 +1,77 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+      },
+      colors: {
+        brand: {
+          50:  '#eefbf3',
+          100: '#d6f5e3',
+          200: '#b0eacc',
+          300: '#7dd8ad',
+          400: '#47bf88',
+          500: '#22a36c',
+          600: '#158357',
+          700: '#116947',
+          800: '#105439',
+          900: '#0e4530',
+          950: '#07271c',
+        },
+        surface: {
+          50:  '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
+        },
+        accent: {
+          blue:   '#3b82f6',
+          indigo: '#6366f1',
+          purple: '#a855f7',
+          amber:  '#f59e0b',
+          rose:   '#f43f5e',
+          cyan:   '#06b6d4',
+        },
+      },
+      animation: {
+        'fade-in':      'fadeIn 0.4s ease-out',
+        'slide-up':     'slideUp 0.35s ease-out',
+        'slide-in-right': 'slideInRight 0.3s ease-out',
+        'bounce-subtle': 'bounceSubtle 0.5s ease-out',
+        'pulse-slow':   'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'spin-slow':    'spin 8s linear infinite',
+        'bar-fill':     'barFill 1.2s ease-out forwards',
+        'count-up':     'fadeIn 0.6s ease-out',
+      },
+      keyframes: {
+        fadeIn:       { from: { opacity: '0' }, to: { opacity: '1' } },
+        slideUp:      { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+        slideInRight: { from: { opacity: '0', transform: 'translateX(20px)' }, to: { opacity: '1', transform: 'translateX(0)' } },
+        bounceSubtle: { '0%': { transform: 'scale(0.95)' }, '60%': { transform: 'scale(1.04)' }, '100%': { transform: 'scale(1)' } },
+        barFill:      { from: { width: '0%' }, to: {} },
+      },
+      backgroundImage: {
+        'gradient-brand': 'linear-gradient(135deg, #22a36c 0%, #158357 100%)',
+        'gradient-dark':  'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        'gradient-card':  'linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+      },
+      boxShadow: {
+        'brand':   '0 4px 24px rgba(34,163,108,0.25)',
+        'card':    '0 2px 12px rgba(0,0,0,0.08)',
+        'card-lg': '0 8px 32px rgba(0,0,0,0.12)',
+        'inner-brand': 'inset 0 1px 0 rgba(255,255,255,0.1)',
+      },
+    },
+  },
+  plugins: [],
+};
