@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  Plus, Trash2, CheckCircle2, Circle, BookOpen, CalendarDays,
+  Plus, Trash2, CheckCircle2, Circle, BookOpen, CalendarDays, X,
   ChevronLeft, ChevronRight, Filter,
 } from 'lucide-react';
 import { useTasks } from '../../hooks/useTasks';
@@ -48,6 +48,7 @@ export default function Planner() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   // Task form
   const [taskForm, setTaskForm] = useState({
@@ -322,19 +323,23 @@ export default function Planner() {
               const dayTasks = getTasksForDay(day);
               const dayEvents = getEventsForDay(day);
               const isToday = isSameDay(new Date(calYear, calMonth, day), today);
+              const isSelected = selectedDay === day;
               const hasPending = dayTasks.some(t => t.status !== 'completed');
               const hasOverdue = dayTasks.some(t => t.status !== 'completed' && new Date(t.due_date) < today);
 
               return (
-                <div
+                <button
                   key={day}
-                  className={`aspect-square p-1 rounded-lg flex flex-col items-center justify-start transition-all cursor-default border ${
-                    isToday
-                      ? 'bg-brand-500/20 border-brand-500/40'
-                      : 'border-transparent hover:border-surface-700 hover:bg-surface-800/50'
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`aspect-square p-1 rounded-lg flex flex-col items-center justify-start transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-brand-500/25 border-brand-500 ring-1 ring-brand-500/40'
+                      : isToday
+                        ? 'bg-brand-500/15 border-brand-500/40 hover:bg-brand-500/25'
+                        : 'border-transparent hover:border-surface-700 hover:bg-surface-800/60'
                   }`}
                 >
-                  <span className={`text-xs font-medium mb-0.5 ${isToday ? 'text-brand-300' : 'text-surface-300'}`}>
+                  <span className={`text-xs font-medium mb-0.5 ${isSelected ? 'text-brand-200' : isToday ? 'text-brand-300' : 'text-surface-300'}`}>
                     {day}
                   </span>
                   <div className="flex flex-wrap gap-0.5 justify-center">
@@ -344,7 +349,7 @@ export default function Planner() {
                       <div key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} title={e.title} />
                     ))}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -363,6 +368,22 @@ export default function Planner() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Selected day detail panel */}
+      {tab === 'calendar' && selectedDay !== null && (
+        <DayDetailPanel
+          date={new Date(calYear, calMonth, selectedDay)}
+          tasks={getTasksForDay(selectedDay)}
+          events={getEventsForDay(selectedDay)}
+          subjects={subjects}
+          onClose={() => setSelectedDay(null)}
+          onAddTask={(payload) => { addTask(payload); }}
+          onAddEvent={(payload) => { addEvent(payload); }}
+          onCompleteTask={(id) => completeTask(id)}
+          onDeleteTask={(id) => deleteTask(id)}
+          onDeleteEvent={(id) => deleteEvent(id)}
+        />
       )}
 
       {/* Events tab */}
@@ -631,6 +652,187 @@ export default function Planner() {
           </form>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+interface DayDetailPanelProps {
+  date: Date;
+  tasks: Task[];
+  events: CalendarEvent[];
+  subjects: Subject[];
+  onClose: () => void;
+  onAddTask: (payload: Omit<Task, 'id' | 'user_id' | 'created_at' | 'completed_at' | 'subject'>) => void;
+  onAddEvent: (payload: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at'>) => void;
+  onCompleteTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onDeleteEvent: (id: string) => void;
+}
+
+function DayDetailPanel({
+  date, tasks, events, subjects,
+  onClose, onAddTask, onAddEvent, onCompleteTask, onDeleteTask, onDeleteEvent,
+}: DayDetailPanelProps) {
+  const [adding, setAdding] = useState<'task' | 'event' | null>(null);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventStart, setEventStart] = useState('09:00');
+  const [eventEnd, setEventEnd] = useState('10:00');
+
+  const dateStr = date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  const isToday = isSameDay(date, new Date());
+  const isoDate = date.toISOString().split('T')[0];
+
+  const submitTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskTitle.trim()) return;
+    onAddTask({
+      title: taskTitle.trim(),
+      type: 'homework',
+      priority: 'medium',
+      due_date: `${isoDate}T23:59`,
+      estimated_minutes: 30,
+      status: 'pending',
+      xp_reward: 20,
+      subject_id: null,
+      description: null,
+    });
+    setTaskTitle('');
+    setAdding(null);
+  };
+
+  const submitEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventTitle.trim()) return;
+    onAddEvent({
+      title: eventTitle.trim(),
+      type: 'activity',
+      start_time: `${isoDate}T${eventStart}`,
+      end_time: `${isoDate}T${eventEnd}`,
+      location: null,
+      color: EVENT_COLORS[0],
+      is_recurring: false,
+    });
+    setEventTitle('');
+    setAdding(null);
+  };
+
+  return (
+    <div className="glass-card p-5 animate-slide-up">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-display font-semibold text-surface-100 flex items-center gap-2">
+            {dateStr}
+            {isToday && <span className="badge bg-brand-500/15 text-brand-400 border border-brand-500/20 text-xs">Today</span>}
+          </h3>
+          <p className="text-xs text-surface-500 mt-0.5">
+            {tasks.length} task{tasks.length !== 1 ? 's' : ''} · {events.length} event{events.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setAdding('task')} className="btn-ghost flex items-center gap-1 text-xs px-2.5 py-1.5">
+            <Plus className="w-3.5 h-3.5" /> Task
+          </button>
+          <button onClick={() => setAdding('event')} className="btn-ghost flex items-center gap-1 text-xs px-2.5 py-1.5">
+            <Plus className="w-3.5 h-3.5" /> Event
+          </button>
+          <button onClick={onClose} className="btn-ghost p-1.5" aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Quick add task */}
+      {adding === 'task' && (
+        <form onSubmit={submitTask} className="mb-3 p-3 rounded-xl bg-surface-800/60 border border-surface-700 animate-slide-up">
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              value={taskTitle}
+              onChange={e => setTaskTitle(e.target.value)}
+              placeholder="Task title..."
+              className="input-field flex-1 text-sm"
+            />
+            <button type="submit" className="btn-primary px-4 text-sm">Add</button>
+            <button type="button" onClick={() => setAdding(null)} className="btn-ghost px-3 text-sm">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {/* Quick add event */}
+      {adding === 'event' && (
+        <form onSubmit={submitEvent} className="mb-3 p-3 rounded-xl bg-surface-800/60 border border-surface-700 animate-slide-up space-y-2">
+          <input
+            autoFocus
+            value={eventTitle}
+            onChange={e => setEventTitle(e.target.value)}
+            placeholder="Event title..."
+            className="input-field text-sm"
+          />
+          <div className="flex gap-2 items-center">
+            <input type="time" value={eventStart} onChange={e => setEventStart(e.target.value)} className="input-field text-sm" />
+            <span className="text-surface-500 text-xs">to</span>
+            <input type="time" value={eventEnd} onChange={e => setEventEnd(e.target.value)} className="input-field text-sm" />
+            <button type="submit" className="btn-primary px-4 text-sm">Add</button>
+            <button type="button" onClick={() => setAdding(null)} className="btn-ghost px-3 text-sm">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {/* Events list */}
+      {events.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {events.map(e => (
+            <div key={e.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
+              <div className="w-1 h-8 rounded-full" style={{ backgroundColor: e.color }} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-surface-100 truncate">{e.title}</div>
+                <div className="text-xs text-surface-500">
+                  {new Date(e.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  {e.location && ` · ${e.location}`}
+                </div>
+              </div>
+              <button onClick={() => onDeleteEvent(e.id)} className="opacity-0 group-hover:opacity-100 text-surface-500 hover:text-rose-400 transition-all p-1">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tasks list */}
+      {tasks.length > 0 ? (
+        <div className="space-y-2">
+          {tasks.map(t => {
+            const done = t.status === 'completed';
+            const meta = TASK_TYPE_META[t.type];
+            return (
+              <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
+                <button onClick={() => onCompleteTask(t.id)} className="flex-shrink-0">
+                  {done
+                    ? <CheckCircle2 className="w-5 h-5 text-brand-400" />
+                    : <Circle className="w-5 h-5 text-surface-600 hover:text-brand-400 transition-colors" />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm truncate ${done ? 'line-through text-surface-600' : 'text-surface-100'}`}>{t.title}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-xs px-1.5 py-0.5 rounded border ${meta.bg} ${meta.color}`}>{meta.label}</span>
+                    {t.subject && <span className="text-xs text-surface-500">{t.subject.name}</span>}
+                  </div>
+                </div>
+                <button onClick={() => onDeleteTask(t.id)} className="opacity-0 group-hover:opacity-100 text-surface-500 hover:text-rose-400 transition-all p-1">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : events.length === 0 && !adding ? (
+        <div className="text-center py-6">
+          <CalendarDays className="w-10 h-10 text-surface-700 mx-auto mb-2" />
+          <p className="text-sm text-surface-500">Nothing scheduled. Add a task or event to get started.</p>
+        </div>
+      ) : null}
     </div>
   );
 }
