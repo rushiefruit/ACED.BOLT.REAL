@@ -38,6 +38,8 @@ export interface Task {
   completed_at: string | null;
   created_at: string;
   subject?: Subject;
+  notified_24h?: boolean;
+  notified_1h?: boolean;
 }
 
 export type EventType = 'class' | 'activity' | 'sport' | 'club';

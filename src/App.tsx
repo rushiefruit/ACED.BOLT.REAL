@@ -14,9 +14,27 @@ import Profile from './components/views/Profile';
 import { useNotifications } from './hooks/useNotifications';
 
 function NotifSync() {
-  const { unreadCount } = useNotifications();
+  const { unreadCount, fetchNotifications } = useNotifications();
   const { setNotifCount } = useApp();
+  const { user } = useAuth();
+
   useEffect(() => { setNotifCount(unreadCount); }, [unreadCount, setNotifCount]);
+
+  useEffect(() => {
+    if (!user) return;
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/task-reminders`;
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+    })
+      .then(() => fetchNotifications())
+      .catch(() => {});
+  }, [user, fetchNotifications]);
+
   return null;
 }
 
