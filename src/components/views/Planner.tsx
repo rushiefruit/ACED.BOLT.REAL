@@ -316,7 +316,7 @@ export default function Planner() {
           {/* Day grid */}
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} />
+              <div key={`empty-${i}`} className="min-h-[84px]" />
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
@@ -324,14 +324,24 @@ export default function Planner() {
               const dayEvents = getEventsForDay(day);
               const isToday = isSameDay(new Date(calYear, calMonth, day), today);
               const isSelected = selectedDay === day;
-              const hasPending = dayTasks.some(t => t.status !== 'completed');
-              const hasOverdue = dayTasks.some(t => t.status !== 'completed' && new Date(t.due_date) < today);
+              const items = [
+                ...dayEvents.map(e => ({ id: e.id, label: e.title, color: e.color, kind: 'event' as const, done: false })),
+                ...dayTasks.map(t => ({
+                  id: t.id,
+                  label: t.title,
+                  color: t.status === 'completed' ? '#475569' : t.type === 'exam' ? '#f43f5e' : '#f59e0b',
+                  kind: 'task' as const,
+                  done: t.status === 'completed',
+                })),
+              ];
+              const shown = items.slice(0, 2);
+              const overflow = items.length - shown.length;
 
               return (
                 <button
                   key={day}
                   onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`aspect-square p-1 rounded-lg flex flex-col items-center justify-start transition-all cursor-pointer border ${
+                  className={`min-h-[84px] p-1.5 rounded-lg flex flex-col items-stretch justify-start transition-all cursor-pointer border text-left ${
                     isSelected
                       ? 'bg-brand-500/25 border-brand-500 ring-1 ring-brand-500/40'
                       : isToday
@@ -339,15 +349,25 @@ export default function Planner() {
                         : 'border-transparent hover:border-surface-700 hover:bg-surface-800/60'
                   }`}
                 >
-                  <span className={`text-xs font-medium mb-0.5 ${isSelected ? 'text-brand-200' : isToday ? 'text-brand-300' : 'text-surface-300'}`}>
+                  <span className={`text-xs font-medium mb-1 self-end ${isSelected ? 'text-brand-200' : isToday ? 'text-brand-300' : 'text-surface-300'}`}>
                     {day}
                   </span>
-                  <div className="flex flex-wrap gap-0.5 justify-center">
-                    {hasOverdue && <div className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Overdue task" />}
-                    {hasPending && !hasOverdue && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Pending task" />}
-                    {dayEvents.slice(0, 2).map(e => (
-                      <div key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} title={e.title} />
+                  <div className="space-y-1 overflow-hidden">
+                    {shown.map(item => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] leading-tight truncate bg-surface-900/60"
+                        title={item.label}
+                      >
+                        <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className={`truncate ${item.done ? 'line-through text-surface-600' : 'text-surface-200'}`}>
+                          {item.label}
+                        </span>
+                      </div>
                     ))}
+                    {overflow > 0 && (
+                      <div className="text-[10px] text-surface-500 px-1">+{overflow} more</div>
+                    )}
                   </div>
                 </button>
               );
@@ -356,10 +376,10 @@ export default function Planner() {
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-surface-800">
             {[
-              { color: 'bg-rose-500', label: 'Overdue' },
-              { color: 'bg-amber-400', label: 'Pending task' },
+              { color: 'bg-rose-500', label: 'Exam' },
+              { color: 'bg-amber-400', label: 'Task' },
+              { color: 'bg-slate-500', label: 'Completed' },
               { color: 'bg-blue-500', label: 'Event' },
-              { color: 'bg-brand-500', label: 'Today' },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${color}`} />
