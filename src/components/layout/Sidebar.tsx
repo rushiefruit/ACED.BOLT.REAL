@@ -36,15 +36,15 @@ export default function Sidebar() {
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-black border-r border-white/10
+        fixed inset-y-0 left-0 z-50 w-64 border-r border-white/10
         flex flex-col transition-transform duration-300 ease-out
         lg:translate-x-0 lg:static lg:z-auto
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      `} style={{ backgroundColor: '#0e0e0e' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <img src="/Screenshot_2026-06-22_111038.png" alt="Aced" className="h-10 w-auto object-contain" />
+            <img src="/Screenshot_2026-06-22_111038.png" alt="Aced" className="h-12 w-auto object-contain" />
           </div>
           <button onClick={() => setSidebarOpen(false)} className="btn-ghost p-1.5 lg:hidden">
             <X className="w-4 h-4" />
