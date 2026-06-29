@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react';
 import {
   Plus, Trash2, CheckCircle2, Circle, BookOpen, CalendarDays, X,
-  ChevronLeft, ChevronRight, Filter,
+  ChevronLeft, ChevronRight, Filter, Edit3,
 } from 'lucide-react';
 import { useTasks } from '../../hooks/useTasks';
 import { useEvents } from '../../hooks/useEvents';
 import { useSubjects } from '../../hooks/useSubjects';
 import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
-import type { TaskType, TaskPriority, EventType } from '../../types';
+import type { Task, TaskType, TaskPriority, EventType } from '../../types';
 
 const TASK_TYPE_META: Record<TaskType, { label: string; color: string; bg: string }> = {
   exam:     { label: 'Exam',     color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20' },
@@ -35,7 +35,7 @@ function isSameDay(a: Date, b: Date) {
 }
 
 export default function Planner() {
-  const { tasks, completeTask, addTask, deleteTask } = useTasks();
+  const { tasks, completeTask, addTask, updateTask, deleteTask } = useTasks();
   const { events, addEvent, deleteEvent } = useEvents();
   const { subjects, addSubject } = useSubjects();
 
@@ -43,6 +43,7 @@ export default function Planner() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
@@ -78,15 +79,43 @@ export default function Planner() {
     await completeTask(id);
   };
 
+  const openAddTaskModal = () => {
+    setEditingTask(null);
+    setTaskForm({ title: '', description: '', type: 'homework', due_date: '', priority: 'medium', estimated_minutes: 30, subject_id: '' });
+    setShowTaskModal(true);
+  };
+
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description ?? '',
+      type: task.type,
+      due_date: task.due_date.slice(0, 16),
+      priority: task.priority,
+      estimated_minutes: task.estimated_minutes,
+      subject_id: task.subject_id ?? '',
+    });
+    setShowTaskModal(true);
+  };
+
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await addTask({
-      ...taskForm,
-      subject_id: taskForm.subject_id || null,
-      status: 'pending',
-    });
+    if (editingTask) {
+      await updateTask(editingTask.id, {
+        ...taskForm,
+        subject_id: taskForm.subject_id || null,
+      });
+    } else {
+      await addTask({
+        ...taskForm,
+        subject_id: taskForm.subject_id || null,
+        status: 'pending',
+      });
+    }
     setShowTaskModal(false);
+    setEditingTask(null);
     setTaskForm({ title: '', description: '', type: 'homework', due_date: '', priority: 'medium', estimated_minutes: 30, subject_id: '' });
     setSaving(false);
   };
@@ -148,7 +177,7 @@ export default function Planner() {
         <div className="flex gap-2">
           {tab !== 'calendar' && (
             <button
-              onClick={() => tab === 'tasks' ? setShowTaskModal(true) : setShowEventModal(true)}
+              onClick={() => tab === 'tasks' ? openAddTaskModal() : setShowEventModal(true)}
               className="btn-primary flex items-center gap-2 text-sm"
             >
               <Plus className="w-4 h-4" />
@@ -208,7 +237,7 @@ export default function Planner() {
               title="No tasks found"
               description="Add your first task to get started organizing your academic life."
               action={
-                <button onClick={() => setShowTaskModal(true)} className="btn-primary flex items-center gap-2">
+                <button onClick={() => openAddTaskModal()} className="btn-primary flex items-center gap-2">
                   <Plus className="w-4 h-4" /> Add Task
                 </button>
               }
@@ -227,10 +256,11 @@ export default function Planner() {
                 return (
                   <div
                     key={task.id}
-                    className={`glass-card p-4 flex items-start gap-3 transition-all ${isCompleted ? 'opacity-60' : ''}`}
+                    className={`glass-card p-4 flex items-start gap-3 transition-all cursor-pointer hover:border-surface-600 ${isCompleted ? 'opacity-60' : ''}`}
+                    onClick={() => openEditTaskModal(task)}
                   >
                     <button
-                      onClick={() => !isCompleted && handleCompleteTask(task.id)}
+                      onClick={(e) => { e.stopPropagation(); !isCompleted && handleCompleteTask(task.id); }}
                       className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                         isCompleted
                           ? 'border-brand-500 bg-brand-500/20'
@@ -272,10 +302,16 @@ export default function Planner() {
                          `${diffDays}d left`}
                       </span>
                       <button
-                        onClick={() => deleteTask(task.id)}
+                        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
                         className="text-surface-600 hover:text-rose-400 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }}
+                        className="text-surface-600 hover:text-brand-400 transition-colors"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -449,7 +485,7 @@ export default function Planner() {
       )}
 
       {/* Add Task Modal */}
-      <Modal open={showTaskModal} onClose={() => setShowTaskModal(false)} title="Add New Task">
+      <Modal open={showTaskModal} onClose={() => { setShowTaskModal(false); setEditingTask(null); }} title={editingTask ? 'Edit Task' : 'Add New Task'}>
         <form onSubmit={handleAddTask} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Task Title *</label>
@@ -532,7 +568,7 @@ export default function Planner() {
             />
           </div>
           <button type="submit" disabled={saving} className="btn-primary w-full">
-            {saving ? 'Adding...' : 'Add Task'}
+            {saving ? 'Saving...' : editingTask ? 'Save Changes' : 'Add Task'}
           </button>
         </form>
       </Modal>

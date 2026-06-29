@@ -36,9 +36,14 @@ export function useTasks() {
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
+    const payload: Record<string, unknown> = { ...updates };
+    if (updates.due_date) {
+      payload.notified_24h = false;
+      payload.notified_1h = false;
+    }
     const { data, error } = await supabase
       .from('tasks')
-      .update(updates)
+      .update(payload)
       .eq('id', id)
       .select('*, subject:subjects(*)')
       .single();
