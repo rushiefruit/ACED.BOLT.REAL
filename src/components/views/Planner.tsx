@@ -38,6 +38,32 @@ export default function Planner() {
   const { tasks, completeTask, addTask, deleteTask } = useTasks();
   const { events, addEvent, deleteEvent } = useEvents();
   const { subjects, addSubject } = useSubjects();
+
+  const [tab, setTab] = useState<'tasks' | 'calendar' | 'events'>('tasks');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [calDate, setCalDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Task form
+  const [taskForm, setTaskForm] = useState({
+    title: '', description: '', type: 'homework' as TaskType,
+    due_date: '', priority: 'medium' as TaskPriority,
+    estimated_minutes: 30, subject_id: '',
+  });
+
+  // Event form
+  const [eventForm, setEventForm] = useState({
+    title: '', type: 'activity' as EventType,
+    start_time: '', end_time: '', location: '', color: EVENT_COLORS[0],
+  });
+
+  // Subject form
+  const [subjectForm, setSubjectForm] = useState({ name: '', color: '#3b82f6', teacher: '' });
+
   const [saving, setSaving] = useState(false);
 
   const filteredTasks = useMemo(() => {
