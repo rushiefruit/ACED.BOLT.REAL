@@ -9,17 +9,18 @@ export function useLeaderboard() {
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
-      .from('xp_transactions')
-      .select('user_id, amount');
+      .from('tasks')
+      .select('user_id, status')
+      .eq('status', 'completed');
 
     if (!data) { setLoading(false); return; }
 
-    const xpMap: Record<string, number> = {};
-    for (const tx of data) {
-      xpMap[tx.user_id] = (xpMap[tx.user_id] ?? 0) + tx.amount;
+    const counts: Record<string, number> = {};
+    for (const t of data) {
+      counts[t.user_id] = (counts[t.user_id] ?? 0) + 1;
     }
 
-    const userIds = Object.keys(xpMap);
+    const userIds = Object.keys(counts);
     if (userIds.length === 0) { setLoading(false); return; }
 
     const { data: profiles } = await supabase
@@ -27,17 +28,17 @@ export function useLeaderboard() {
       .select('id, full_name, avatar_emoji, streak_count, school')
       .in('id', userIds);
 
-    const entries: LeaderboardEntry[] = (profiles ?? []).map((p, idx) => ({
+    const entries: LeaderboardEntry[] = (profiles ?? []).map((p) => ({
       user_id: p.id,
       full_name: p.full_name ?? 'Student',
       avatar_emoji: p.avatar_emoji ?? '🎓',
-      total_xp: xpMap[p.id] ?? 0,
+      completed_tasks: counts[p.id] ?? 0,
       streak_count: p.streak_count ?? 0,
       school: p.school,
-      rank: idx + 1,
+      rank: 0,
     }));
 
-    entries.sort((a, b) => b.total_xp - a.total_xp);
+    entries.sort((a, b) => b.completed_tasks - a.completed_tasks);
     entries.forEach((e, i) => { e.rank = i + 1; });
 
     setEntries(entries);

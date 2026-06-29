@@ -1,7 +1,6 @@
 import { LayoutDashboard, CalendarDays, Brain, Trophy, Bell, User, LogOut, X } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useXP } from '../../hooks/useXP';
 
 const NAV_ITEMS = [
   { id: 'dashboard',      label: 'Dashboard',    icon: LayoutDashboard },
@@ -15,10 +14,6 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const { activeView, setActiveView, sidebarOpen, setSidebarOpen, notifCount } = useApp();
   const { profile, signOut } = useAuth();
-  const { totalXP, getLevel, getLevelProgress, getLevelTitle } = useXP();
-
-  const level = getLevel(totalXP);
-  const progress = getLevelProgress(totalXP);
 
   const handleNav = (id: typeof NAV_ITEMS[number]['id']) => {
     setActiveView(id);
@@ -53,25 +48,13 @@ export default function Sidebar() {
 
         {/* User card */}
         <div className="p-4 mx-3 mt-3 rounded-xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-xl flex-shrink-0">
               {profile?.avatar_emoji ?? '🎓'}
             </div>
             <div className="min-w-0">
               <div className="font-semibold text-surface-100 text-sm truncate">{profile?.full_name ?? 'Student'}</div>
-              <div className="text-xs text-surface-500">Level {level} · {getLevelTitle(level)}</div>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-surface-500">{totalXP} XP</span>
-              <span className="text-xs text-brand-400">{progress}%</span>
-            </div>
-            <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-brand rounded-full transition-all duration-700"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="text-xs text-surface-500">{profile?.school ?? 'Student'}</div>
             </div>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { Trophy, Flame, Zap, RefreshCw, Crown, Medal } from 'lucide-react';
+import { Trophy, Flame, RefreshCw, Crown, Medal, CheckCircle2 } from 'lucide-react';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
-import { useXP } from '../../hooks/useXP';
 import { useAuth } from '../../contexts/AuthContext';
 
 const RANK_STYLES: Record<number, { bg: string; border: string; badge: string; text: string }> = {
@@ -19,18 +18,14 @@ function RankIcon({ rank }: { rank: number }) {
 
 export default function Leaderboard() {
   const { entries, loading, fetchLeaderboard } = useLeaderboard();
-  const { totalXP, getLevel, getLevelTitle } = useXP();
   const { user, profile } = useAuth();
 
   useEffect(() => { fetchLeaderboard(); }, [fetchLeaderboard]);
 
-  const myRank = entries.findIndex(e => e.user_id === user?.id) + 1;
-  const maxXP = entries[0]?.total_xp ?? 1;
-
-  const getLevelBadge = (xp: number) => {
-    const lvl = getLevel(xp);
-    return `Lv.${lvl}`;
-  };
+  const myEntry = entries.find(e => e.user_id === user?.id);
+  const myRank = myEntry?.rank ?? 0;
+  const myCompleted = myEntry?.completed_tasks ?? 0;
+  const maxCompleted = entries[0]?.completed_tasks ?? 1;
 
   return (
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
@@ -43,14 +38,14 @@ export default function Leaderboard() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-display font-bold text-white mb-1">Global Leaderboard</h2>
-            <p className="text-surface-400 text-sm">Complete tasks, earn XP, and rise through the ranks. Every assignment completed counts.</p>
+            <p className="text-surface-400 text-sm">Complete tasks and rise through the ranks. Every assignment completed counts.</p>
             {myRank > 0 && (
               <div className="flex items-center gap-3 mt-3">
                 <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/20">
                   Your rank: #{myRank}
                 </span>
                 <span className="badge bg-brand-500/15 text-brand-400 border border-brand-500/20">
-                  <Zap className="w-3 h-3" /> {totalXP.toLocaleString()} XP
+                  <CheckCircle2 className="w-3 h-3" /> {myCompleted} completed
                 </span>
               </div>
             )}
@@ -69,7 +64,7 @@ export default function Leaderboard() {
             </div>
             <div className="text-right">
               <div className="font-bold text-brand-400">#{myRank}</div>
-              <div className="text-xs text-surface-500">{totalXP.toLocaleString()} XP</div>
+              <div className="text-xs text-surface-500">{myCompleted} completed</div>
             </div>
           </div>
         </div>
@@ -94,7 +89,7 @@ export default function Leaderboard() {
                   <div className="text-xs font-semibold text-surface-200 truncate max-w-[80px]">
                     {entry.full_name.split(' ')[0]}
                   </div>
-                  <div className="text-xs text-brand-400">{entry.total_xp.toLocaleString()} XP</div>
+                  <div className="text-xs text-brand-400">{entry.completed_tasks} done</div>
                 </div>
                 <div className={`w-full ${heights[posIdx]} rounded-t-xl flex items-center justify-center ${
                   posIdx === 1
@@ -127,14 +122,14 @@ export default function Leaderboard() {
         ) : entries.length === 0 ? (
           <div className="text-center py-16">
             <Trophy className="w-12 h-12 text-surface-700 mx-auto mb-3" />
-            <p className="text-surface-400">No rankings yet. Complete tasks to earn XP and appear here!</p>
+            <p className="text-surface-400">No rankings yet. Complete tasks to appear here!</p>
           </div>
         ) : (
           <div className="divide-y divide-surface-800/50">
             {entries.slice(0, 20).map(entry => {
               const isMe = entry.user_id === user?.id;
               const rankStyle = RANK_STYLES[entry.rank];
-              const barWidth = Math.max(5, Math.round((entry.total_xp / maxXP) * 100));
+              const barWidth = Math.max(5, Math.round((entry.completed_tasks / maxCompleted) * 100));
 
               return (
                 <div
@@ -165,11 +160,8 @@ export default function Leaderboard() {
                         {entry.full_name}
                         {isMe && <span className="text-xs text-brand-500 ml-1">(you)</span>}
                       </span>
-                      <span className="badge bg-surface-800 text-surface-400 border border-surface-700 text-xs flex-shrink-0">
-                        {getLevelBadge(entry.total_xp)}
-                      </span>
                     </div>
-                    {/* XP bar */}
+                    {/* Progress bar */}
                     <div className="mt-1.5 h-1 bg-surface-800 rounded-full overflow-hidden w-full max-w-[160px]">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${isMe ? 'bg-brand-500' : 'bg-surface-600'}`}
@@ -188,9 +180,9 @@ export default function Leaderboard() {
                     )}
                     <div className="text-right">
                       <div className={`font-bold text-sm ${rankStyle ? rankStyle.text : 'text-surface-300'}`}>
-                        {entry.total_xp.toLocaleString()}
+                        {entry.completed_tasks}
                       </div>
-                      <div className="text-xs text-surface-600">XP</div>
+                      <div className="text-xs text-surface-600">done</div>
                     </div>
                   </div>
                 </div>
@@ -198,29 +190,6 @@ export default function Leaderboard() {
             })}
           </div>
         )}
-      </div>
-
-      {/* How to earn XP */}
-      <div className="glass-card p-5">
-        <h4 className="font-display font-semibold text-surface-100 mb-4 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-brand-400" />
-          How to Earn XP
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            { action: 'Complete exam task', xp: 50, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-            { action: 'Finish project', xp: 40, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { action: 'Complete study session', xp: 20, color: 'text-brand-400', bg: 'bg-brand-500/10' },
-            { action: 'Submit homework', xp: 15, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { action: 'Finish reading', xp: 10, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { action: 'Daily streak', xp: '+bonus', color: 'text-brand-400', bg: 'bg-brand-500/10' },
-          ].map(({ action, xp, color, bg }) => (
-            <div key={action} className={`rounded-xl p-3 ${bg} border border-transparent`}>
-              <div className={`font-bold text-sm ${color}`}>+{xp} XP</div>
-              <div className="text-xs text-surface-400 mt-0.5">{action}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

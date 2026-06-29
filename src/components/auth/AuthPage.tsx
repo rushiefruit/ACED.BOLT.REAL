@@ -74,7 +74,7 @@ export default function AuthPage() {
               {[
                 { icon: Brain, label: 'AI Plan Advisor', desc: 'Personalized study schedules built around your life' },
                 { icon: BookOpen, label: 'Dynamic Planner', desc: 'Never miss a deadline or exam again' },
-                { icon: Trophy, label: 'Gamified Progress', desc: 'Earn XP, climb leaderboards, stay motivated' },
+                { icon: Trophy, label: 'Leaderboard', desc: 'Climb the ranks, stay motivated' },
               ].map(({ icon: Icon, label, desc }) => (
                 <div key={label} className="flex items-start gap-4 p-4 rounded-xl bg-surface-800/50 border border-surface-700/50">
                   <div className="w-10 h-10 rounded-lg bg-brand-500/15 border border-brand-500/20 flex items-center justify-center flex-shrink-0">

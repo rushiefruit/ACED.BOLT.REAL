@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { User, Zap, Flame, Edit3, Save, X, BookOpen, CheckCircle2, Target } from 'lucide-react';
+import { User, Flame, Edit3, Save, X, BookOpen, CheckCircle2, Target } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useXP } from '../../hooks/useXP';
 import { useTasks } from '../../hooks/useTasks';
 
 const AVATARS = ['🎓','🧠','⚡','🚀','🏆','📚','🎯','💡','🌟','🔥','🦁','🎸','⚽','🎨','🌍','🤖','🎮','🏄','🧬','🎻'];
@@ -9,7 +8,6 @@ const GRADE_LEVELS = ['6th Grade','7th Grade','8th Grade','9th Grade','10th Grad
 
 export default function Profile() {
   const { profile, updateProfile } = useAuth();
-  const { totalXP, transactions, getLevel, getLevelProgress, getLevelTitle } = useXP();
   const { tasks } = useTasks();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,9 +19,6 @@ export default function Profile() {
     avatar_emoji: profile?.avatar_emoji ?? '🎓',
   });
 
-  const level = getLevel(totalXP);
-  const progress = getLevelProgress(totalXP);
-
   const stats = useMemo(() => {
     const completed = tasks.filter(t => t.status === 'completed');
     const exams = completed.filter(t => t.type === 'exam');
@@ -32,8 +27,6 @@ export default function Profile() {
     const completionRate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
     return { completed: completed.length, exams: exams.length, projects: projects.length, completionRate };
   }, [tasks]);
-
-  const recentXP = useMemo(() => transactions.slice(0, 8), [transactions]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -58,10 +51,6 @@ export default function Profile() {
     });
     setEditing(false);
   };
-
-  const LEVEL_THRESHOLDS = [0, 100, 250, 500, 850, 1300, 1900, 2600, 3500, 4500, 6000];
-  const nextLevelXP = LEVEL_THRESHOLDS[Math.min(level, 10)];
-  const currLevelXP = LEVEL_THRESHOLDS[Math.max(level - 1, 0)];
 
   return (
     <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
@@ -168,43 +157,6 @@ export default function Profile() {
         )}
       </div>
 
-      {/* XP & Level */}
-      <div className="glass-card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap className="w-4 h-4 text-brand-400" />
-          <h3 className="font-display font-semibold text-surface-100">XP & Level</h3>
-        </div>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-brand flex items-center justify-center shadow-brand">
-            <span className="text-2xl font-display font-bold text-white">{level}</span>
-          </div>
-          <div className="flex-1">
-            <div className="font-bold text-surface-100">{getLevelTitle(level)}</div>
-            <div className="text-brand-400 text-2xl font-display font-bold">{totalXP.toLocaleString()} XP</div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-surface-500">Streak</div>
-            <div className="flex items-center gap-1 justify-end">
-              <Flame className="w-4 h-4 text-amber-400" />
-              <span className="font-bold text-amber-400">{profile?.streak_count ?? 0}</span>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-surface-500">Level {level}</span>
-            <span className="text-xs text-surface-500">{nextLevelXP - currLevelXP > 0 ? `${totalXP - currLevelXP} / ${nextLevelXP - currLevelXP} XP` : 'Max Level'}</span>
-            <span className="text-xs text-surface-500">Level {level + 1}</span>
-          </div>
-          <div className="h-2.5 bg-surface-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-brand rounded-full transition-all duration-700"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -227,31 +179,22 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Recent XP */}
-      {recentXP.length > 0 && (
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-4 h-4 text-brand-400" />
-            <h3 className="font-display font-semibold text-surface-100">Recent XP</h3>
+      {/* Streak card */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Flame className="w-4 h-4 text-amber-400" />
+          <h3 className="font-display font-semibold text-surface-100">Streak</h3>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center">
+            <Flame className="w-7 h-7 text-amber-400" />
           </div>
-          <div className="space-y-2">
-            {recentXP.map(tx => (
-              <div key={tx.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/50">
-                <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-3.5 h-3.5 text-brand-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-surface-300 truncate">{tx.reason ?? 'XP earned'}</div>
-                  <div className="text-xs text-surface-600">
-                    {new Date(tx.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </div>
-                </div>
-                <div className="font-bold text-brand-400 text-sm">+{tx.amount}</div>
-              </div>
-            ))}
+          <div>
+            <div className="text-2xl font-display font-bold text-amber-400">{profile?.streak_count ?? 0} days</div>
+            <div className="text-sm text-surface-400">Keep completing tasks to grow your streak!</div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

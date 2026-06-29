@@ -34,7 +34,6 @@ export interface Task {
   priority: TaskPriority;
   estimated_minutes: number;
   status: TaskStatus;
-  xp_reward: number;
   completed_at: string | null;
   created_at: string;
   subject?: Subject;
@@ -54,15 +53,6 @@ export interface CalendarEvent {
   location: string | null;
   color: string;
   is_recurring: boolean;
-  created_at: string;
-}
-
-export interface XPTransaction {
-  id: string;
-  user_id: string;
-  amount: number;
-  reason: string | null;
-  source: string;
   created_at: string;
 }
 
@@ -106,7 +96,7 @@ export interface LeaderboardEntry {
   user_id: string;
   full_name: string;
   avatar_emoji: string;
-  total_xp: number;
+  completed_tasks: number;
   streak_count: number;
   school: string | null;
   rank: number;

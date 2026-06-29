@@ -4,7 +4,6 @@ import { AppProvider, useApp } from './contexts/AppContext';
 import AuthPage from './components/auth/AuthPage';
 import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
-import XPToast from './components/ui/XPToast';
 import Dashboard from './components/views/Dashboard';
 import Planner from './components/views/Planner';
 import Advisor from './components/views/Advisor';
@@ -74,7 +73,6 @@ function AppShell() {
           {activeView === 'profile'       && <Profile />}
         </main>
       </div>
-      <XPToast />
     </div>
   );
 }

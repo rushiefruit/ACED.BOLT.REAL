@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import {
-  CheckCircle2, Clock, Zap, Flame, BookOpen, CalendarDays,
+  CheckCircle2, Clock, Flame, BookOpen, CalendarDays,
   Trophy, TrendingUp, ArrowRight, Circle, Brain,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { useTasks } from '../../hooks/useTasks';
-import { useXP } from '../../hooks/useXP';
 import { useEvents } from '../../hooks/useEvents';
 
 const TASK_TYPE_COLORS: Record<string, string> = {
@@ -27,9 +26,8 @@ const TASK_TYPE_BG: Record<string, string> = {
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const { setActiveView, triggerXP } = useApp();
+  const { setActiveView } = useApp();
   const { tasks, completeTask } = useTasks();
-  const { totalXP, getLevel, getLevelProgress, getLevelTitle, fetchXP } = useXP();
   const { events } = useEvents();
 
   const today = new Date();
@@ -58,15 +56,8 @@ export default function Dashboard() {
       .slice(0, 5)
   , [tasks]);
 
-  const level = getLevel(totalXP);
-  const progress = getLevelProgress(totalXP);
-
   const handleComplete = async (taskId: string) => {
-    const xp = await completeTask(taskId);
-    if (xp > 0) {
-      triggerXP(xp);
-      await fetchXP();
-    }
+    await completeTask(taskId);
   };
 
   const formatDue = (dateStr: string) => {
@@ -83,7 +74,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
-      {/* Hero XP card */}
+      {/* Welcome card */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 border border-brand-500/30">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white translate-x-1/3 -translate-y-1/2" />
@@ -92,8 +83,8 @@ export default function Dashboard() {
         <div className="relative">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="text-brand-200 text-sm font-medium mb-1">Level {level} · {getLevelTitle(level)}</div>
-              <div className="text-white text-3xl font-display font-bold">{totalXP.toLocaleString()} XP</div>
+              <div className="text-brand-200 text-sm font-medium mb-1">Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</div>
+              <div className="text-white text-2xl font-display font-bold">{stats.completed} tasks completed</div>
             </div>
             <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
               <Flame className="w-4 h-4 text-amber-300" />
@@ -102,13 +93,13 @@ export default function Dashboard() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-brand-200 text-xs">Progress to Level {level + 1}</span>
-              <span className="text-white text-xs font-semibold">{progress}%</span>
+              <span className="text-brand-200 text-xs">{stats.pending} tasks remaining</span>
+              <span className="text-white text-xs font-semibold">{stats.overdue} overdue</span>
             </div>
             <div className="h-2 bg-white/20 rounded-full overflow-hidden">
               <div
                 className="h-full bg-white rounded-full transition-all duration-700"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${stats.completed + stats.pending > 0 ? Math.round((stats.completed / (stats.completed + stats.pending)) * 100) : 0}%` }}
               />
             </div>
           </div>
@@ -178,7 +169,6 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <span className={`text-xs font-semibold ${due.color}`}>{due.label}</span>
-                      <span className="text-xs text-brand-500">+{task.xp_reward} XP</span>
                     </div>
                   </div>
                 );
@@ -236,12 +226,11 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div className="glass-card p-5">
         <h3 className="font-display font-semibold text-surface-100 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
             { label: 'Study Plan', icon: Brain, color: 'text-brand-400', bg: 'bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/20', view: 'advisor' as const },
             { label: 'Add Task', icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20', view: 'planner' as const },
             { label: 'Leaderboard', icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20', view: 'leaderboard' as const },
-            { label: 'Your XP', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20', view: 'profile' as const },
           ].map(({ label, icon: Icon, color, bg, view }) => (
             <button
               key={label}

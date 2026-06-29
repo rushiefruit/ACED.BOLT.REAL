@@ -48,23 +48,12 @@ export function useTasks() {
     return error ? null : (data as Task);
   };
 
-  const completeTask = async (id: string): Promise<number> => {
-    const task = tasks.find(t => t.id === id);
-    if (!task) return 0;
+  const completeTask = async (id: string): Promise<void> => {
     const updates: Partial<Task> = {
       status: 'completed' as TaskStatus,
       completed_at: new Date().toISOString(),
     };
     await updateTask(id, updates);
-    if (user) {
-      await supabase.from('xp_transactions').insert({
-        user_id: user.id,
-        amount: task.xp_reward,
-        reason: `Completed: ${task.title}`,
-        source: 'task_completion',
-      });
-    }
-    return task.xp_reward;
   };
 
   const deleteTask = async (id: string) => {

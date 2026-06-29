@@ -6,7 +6,6 @@ import {
 import { useTasks } from '../../hooks/useTasks';
 import { useEvents } from '../../hooks/useEvents';
 import { useSubjects } from '../../hooks/useSubjects';
-import { useApp } from '../../contexts/AppContext';
 import Modal from '../ui/Modal';
 import EmptyState from '../ui/EmptyState';
 import type { TaskType, TaskPriority, EventType } from '../../types';
@@ -39,33 +38,6 @@ export default function Planner() {
   const { tasks, completeTask, addTask, deleteTask } = useTasks();
   const { events, addEvent, deleteEvent } = useEvents();
   const { subjects, addSubject } = useSubjects();
-  const { triggerXP } = useApp();
-
-  const [tab, setTab] = useState<'tasks' | 'calendar' | 'events'>('tasks');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showEventModal, setShowEventModal] = useState(false);
-  const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [calDate, setCalDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-
-  // Task form
-  const [taskForm, setTaskForm] = useState({
-    title: '', description: '', type: 'homework' as TaskType,
-    due_date: '', priority: 'medium' as TaskPriority,
-    estimated_minutes: 30, subject_id: '', xp_reward: 10,
-  });
-
-  // Event form
-  const [eventForm, setEventForm] = useState({
-    title: '', type: 'activity' as EventType,
-    start_time: '', end_time: '', location: '', color: EVENT_COLORS[0],
-  });
-
-  // Subject form
-  const [subjectForm, setSubjectForm] = useState({ name: '', color: '#3b82f6', teacher: '' });
-
   const [saving, setSaving] = useState(false);
 
   const filteredTasks = useMemo(() => {
@@ -77,22 +49,19 @@ export default function Planner() {
   }, [tasks, filterStatus, filterType]);
 
   const handleCompleteTask = async (id: string) => {
-    const xp = await completeTask(id);
-    if (xp > 0) triggerXP(xp);
+    await completeTask(id);
   };
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const xpMap: Record<TaskType, number> = { exam: 50, homework: 15, study: 20, project: 40, reading: 10 };
     await addTask({
       ...taskForm,
       subject_id: taskForm.subject_id || null,
-      xp_reward: xpMap[taskForm.type],
       status: 'pending',
     });
     setShowTaskModal(false);
-    setTaskForm({ title: '', description: '', type: 'homework', due_date: '', priority: 'medium', estimated_minutes: 30, subject_id: '', xp_reward: 10 });
+    setTaskForm({ title: '', description: '', type: 'homework', due_date: '', priority: 'medium', estimated_minutes: 30, subject_id: '' });
     setSaving(false);
   };
 
@@ -276,7 +245,6 @@ export default function Planner() {
                          diffDays === 1 ? 'Tomorrow' :
                          `${diffDays}d left`}
                       </span>
-                      <span className="text-xs text-brand-500">+{task.xp_reward} XP</span>
                       <button
                         onClick={() => deleteTask(task.id)}
                         className="text-surface-600 hover:text-rose-400 transition-colors"
@@ -713,7 +681,6 @@ function DayDetailPanel({
       due_date: `${isoDate}T23:59`,
       estimated_minutes: 30,
       status: 'pending',
-      xp_reward: 20,
       subject_id: null,
       description: null,
     });
