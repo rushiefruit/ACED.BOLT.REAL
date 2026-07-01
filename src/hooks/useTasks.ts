@@ -61,11 +61,27 @@ export function useTasks() {
     await updateTask(id, updates);
   };
 
+  const uncompleteTask = async (id: string): Promise<void> => {
+    const updates: Partial<Task> = {
+      status: 'pending' as TaskStatus,
+      completed_at: null,
+    };
+    await updateTask(id, updates);
+  };
+
+  const toggleTaskComplete = async (id: string, isCompleted: boolean): Promise<void> => {
+    if (isCompleted) {
+      await uncompleteTask(id);
+    } else {
+      await completeTask(id);
+    }
+  };
+
   const deleteTask = async (id: string) => {
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (!error) setTasks(prev => prev.filter(t => t.id !== id));
     return !error;
   };
 
-  return { tasks, loading, fetchTasks, addTask, updateTask, completeTask, deleteTask };
+  return { tasks, loading, fetchTasks, addTask, updateTask, completeTask, uncompleteTask, toggleTaskComplete, deleteTask };
 }

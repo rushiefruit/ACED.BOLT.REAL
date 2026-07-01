@@ -35,7 +35,7 @@ function isSameDay(a: Date, b: Date) {
 }
 
 export default function Planner() {
-  const { tasks, completeTask, addTask, updateTask, deleteTask } = useTasks();
+  const { tasks, toggleTaskComplete, addTask, updateTask, deleteTask } = useTasks();
   const { events, addEvent, deleteEvent } = useEvents();
   const { subjects, addSubject } = useSubjects();
 
@@ -75,8 +75,8 @@ export default function Planner() {
     });
   }, [tasks, filterStatus, filterType]);
 
-  const handleCompleteTask = async (id: string) => {
-    await completeTask(id);
+  const handleToggleTask = async (id: string, isCompleted: boolean) => {
+    await toggleTaskComplete(id, isCompleted);
   };
 
   const openAddTaskModal = () => {
@@ -260,10 +260,10 @@ export default function Planner() {
                     onClick={() => openEditTaskModal(task)}
                   >
                     <button
-                      onClick={(e) => { e.stopPropagation(); !isCompleted && handleCompleteTask(task.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleToggleTask(task.id, isCompleted); }}
                       className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                         isCompleted
-                          ? 'border-brand-500 bg-brand-500/20'
+                          ? 'border-brand-500 bg-brand-500/20 hover:border-surface-600 hover:bg-surface-800'
                           : 'border-surface-600 hover:border-brand-500 hover:bg-brand-500/10'
                       }`}
                     >
@@ -430,7 +430,7 @@ export default function Planner() {
           onClose={() => setSelectedDay(null)}
           onAddTask={(payload) => { addTask(payload); }}
           onAddEvent={(payload) => { addEvent(payload); }}
-          onCompleteTask={(id) => completeTask(id)}
+          onToggleTask={(id, isCompleted) => toggleTaskComplete(id, isCompleted)}
           onDeleteTask={(id) => deleteTask(id)}
           onDeleteEvent={(id) => deleteEvent(id)}
         />
@@ -714,14 +714,14 @@ interface DayDetailPanelProps {
   onClose: () => void;
   onAddTask: (payload: Omit<Task, 'id' | 'user_id' | 'created_at' | 'completed_at' | 'subject'>) => void;
   onAddEvent: (payload: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at'>) => void;
-  onCompleteTask: (id: string) => void;
+  onToggleTask: (id: string, isCompleted: boolean) => void;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
 }
 
 function DayDetailPanel({
   date, tasks, events, subjects,
-  onClose, onAddTask, onAddEvent, onCompleteTask, onDeleteTask, onDeleteEvent,
+  onClose, onAddTask, onAddEvent, onToggleTask, onDeleteTask, onDeleteEvent,
 }: DayDetailPanelProps) {
   const [adding, setAdding] = useState<'task' | 'event' | null>(null);
   const [taskTitle, setTaskTitle] = useState('');
@@ -856,10 +856,10 @@ function DayDetailPanel({
             const done = t.status === 'completed';
             const meta = TASK_TYPE_META[t.type];
             return (
-              <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
-                <button onClick={() => onCompleteTask(t.id)} className="flex-shrink-0">
+                <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
+                <button onClick={() => onToggleTask(t.id, done)} className="flex-shrink-0">
                   {done
-                    ? <CheckCircle2 className="w-5 h-5 text-brand-400" />
+                    ? <CheckCircle2 className="w-5 h-5 text-brand-400 hover:text-surface-400 transition-colors" />
                     : <Circle className="w-5 h-5 text-surface-600 hover:text-brand-400 transition-colors" />}
                 </button>
                 <div className="flex-1 min-w-0">

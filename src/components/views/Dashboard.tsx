@@ -27,7 +27,7 @@ const TASK_TYPE_BG: Record<string, string> = {
 export default function Dashboard() {
   const { profile } = useAuth();
   const { setActiveView } = useApp();
-  const { tasks, completeTask } = useTasks();
+  const { tasks, toggleTaskComplete } = useTasks();
   const { events } = useEvents();
 
   const today = new Date();
@@ -57,7 +57,7 @@ export default function Dashboard() {
   , [tasks]);
 
   const handleComplete = async (taskId: string) => {
-    await completeTask(taskId);
+    await toggleTaskComplete(taskId, false);
   };
 
   const formatDue = (dateStr: string) => {
