@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Task, TaskStatus } from '../types';
 
 export function useTasks() {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,12 +53,76 @@ export function useTasks() {
     return error ? null : (data as Task);
   };
 
+  const updateStreakOnComplete = async () => {
+    if (!user || !profile) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastActive = profile.last_active_date?.split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    let newStreak = profile.streak_count ?? 0;
+    let newLastActive = today;
+
+    if (lastActive === today) {
+      // Already active today, keep streak
+    } else if (lastActive === yesterday) {
+      // Consecutive day - increment streak
+      newStreak = (profile.streak_count ?? 0) + 1;
+    } else {
+      // Streak broken or first completion - reset to 1
+      newStreak = 1;
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ streak_count: newStreak, last_active_date: newLastActive })
+      .eq('id', user.id);
+
+    refreshProfile();
+  };
+
+  const updateStreakOnUncomplete = async () => {
+    if (!user || !profile) return;
+
+    // Check if user has any other completed tasks today
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .gte('completed_at', `${today}T00:00:00`)
+      .lte('completed_at', `${today}T23:59:59`);
+
+    // If no completed tasks today, decrement streak if yesterday wasn't active
+    if (!data || data.length === 0) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const lastActive = profile.last_active_date?.split('T')[0];
+
+      if (lastActive === yesterday) {
+        // Yesterday was active, so keep yesterday as last active
+        await supabase
+          .from('profiles')
+          .update({ streak_count: Math.max(0, (profile.streak_count ?? 1) - 1), last_active_date: yesterday })
+          .eq('id', user.id);
+      } else if (lastActive === today) {
+        // Was only active today, reset streak
+        await supabase
+          .from('profiles')
+          .update({ streak_count: 0, last_active_date: null })
+          .eq('id', user.id);
+      }
+      refreshProfile();
+    }
+  };
+
   const completeTask = async (id: string): Promise<void> => {
     const updates: Partial<Task> = {
       status: 'completed' as TaskStatus,
       completed_at: new Date().toISOString(),
     };
     await updateTask(id, updates);
+    await updateStreakOnComplete();
   };
 
   const uncompleteTask = async (id: string): Promise<void> => {
@@ -67,6 +131,7 @@ export function useTasks() {
       completed_at: null,
     };
     await updateTask(id, updates);
+    await updateStreakOnUncomplete();
   };
 
   const toggleTaskComplete = async (id: string, isCompleted: boolean): Promise<void> => {
