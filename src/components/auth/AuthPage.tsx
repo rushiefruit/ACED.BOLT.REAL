@@ -72,8 +72,8 @@ export default function AuthPage() {
 
             <div className="space-y-4">
               {[
-                { icon: Brain, label: 'AI Plan Advisor', desc: 'Personalized study schedules built around your life' },
-                { icon: BookOpen, label: 'Dynamic Planner', desc: 'Never miss a deadline or exam again' },
+                { icon: Brain, label: 'AI Advisor', desc: 'Personalized study schedules built around your life' },
+                { icon: BookOpen, label: 'Daily Planner', desc: 'Never miss a deadline or exam again' },
                 { icon: Trophy, label: 'Leaderboard', desc: 'Climb the ranks, stay motivated' },
               ].map(({ icon: Icon, label, desc }) => (
                 <div key={label} className="flex items-start gap-4 p-4 rounded-xl bg-surface-800/50 border border-surface-700/50">
@@ -87,14 +87,6 @@ export default function AuthPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-brand-500/10 border border-brand-500/20">
-          <div className="text-2xl">🎓</div>
-          <div>
-            <div className="text-sm font-semibold text-brand-300">Trusted by students worldwide</div>
-            <div className="text-xs text-surface-500">Middle school, high school, and university</div>
           </div>
         </div>
       </div>
