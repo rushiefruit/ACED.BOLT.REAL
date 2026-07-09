@@ -34,8 +34,8 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen bg-surface-950 flex items-center justify-center p-4">
         <div className="text-center animate-slide-up max-w-sm">
-          <div className="w-20 h-20 bg-brand-500/15 rounded-full flex items-center justify-center mx-auto mb-6 border border-brand-500/30">
-            <CheckCircle className="w-10 h-10 text-brand-400" />
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'rgba(34,197,94,0.3)' }}>
+            <CheckCircle className="w-10 h-10" style={{ color: '#22C55E' }} />
           </div>
           <h2 className="text-2xl font-display font-bold text-white mb-2">Account Created!</h2>
           <p className="text-surface-400 mb-6">Check your email to confirm your account, then sign in.</p>
@@ -77,8 +77,8 @@ export default function AuthPage() {
                 { icon: Trophy, label: 'Leaderboard', desc: 'Climb the ranks, stay motivated' },
               ].map(({ icon: Icon, label, desc }) => (
                 <div key={label} className="flex items-start gap-4 p-4 rounded-xl bg-surface-800/50 border border-surface-700/50">
-                  <div className="w-10 h-10 rounded-lg bg-brand-500/15 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-brand-400" />
+                  <div className="w-10 h-10 rounded-lg border flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.2)' }}>
+                    <Icon className="w-5 h-5" style={{ color: '#22C55E' }} />
                   </div>
                   <div>
                     <div className="font-semibold text-surface-100 text-sm">{label}</div>
