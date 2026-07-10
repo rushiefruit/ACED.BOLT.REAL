@@ -1,14 +1,14 @@
-import { LayoutDashboard, CalendarDays, Brain, Trophy, Bell, User, LogOut, X, BookMarked } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Trophy, Bell, User, LogOut, X, BookMarked, MessageSquare } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const NAV_ITEMS = [
   { id: 'dashboard',      label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'planner',        label: 'Daily Planner', icon: CalendarDays },
-  { id: 'advisor',        label: 'AI Advisor',   icon: Brain },
   { id: 'leaderboard',   label: 'Leaderboard',  icon: Trophy },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'notes',         label: 'Notes Digestor', icon: BookMarked },
+  { id: 'chat',          label: 'Atlas Chat',    icon: MessageSquare },
   { id: 'profile',       label: 'Profile',        icon: User },
 ] as const;
 

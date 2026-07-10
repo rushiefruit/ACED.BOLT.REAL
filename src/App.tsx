@@ -6,11 +6,12 @@ import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
 import Dashboard from './components/views/Dashboard';
 import Planner from './components/views/Planner';
-import Advisor from './components/views/Advisor';
 import Leaderboard from './components/views/Leaderboard';
 import Notifications from './components/views/Notifications';
 import Profile from './components/views/Profile';
 import NotesDigestor from './components/views/NotesDigestor';
+import AIChat from './components/views/AIChat';
+import { useNotifications } from './hooks/useNotifications';
 
 function NotifSync() {
   const { unreadCount, fetchNotifications } = useNotifications();
@@ -67,10 +68,10 @@ function AppShell() {
         <main className="flex-1 overflow-y-auto">
           {activeView === 'dashboard'     && <Dashboard />}
           {activeView === 'planner'       && <Planner />}
-          {activeView === 'advisor'       && <Advisor />}
           {activeView === 'leaderboard'   && <Leaderboard />}
           {activeView === 'notifications' && <Notifications />}
           {activeView === 'notes'         && <NotesDigestor />}
+          {activeView === 'chat'          && <AIChat />}
           {activeView === 'profile'       && <Profile />}
         </main>
       </div>
