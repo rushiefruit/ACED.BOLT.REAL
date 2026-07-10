@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") ?? (await req.json().then((b: Record<string,string>) => b.action).catch(() => null));
 
-    // ── OCR: extract text from a base64 image ─────────────────────────────
+    // ── OCR: extract text + summary + title in ONE vision API call ────────
     if (action === "ocr") {
       const body = await req.json();
       const { note_id, image_base64, mime_type } = body as {
@@ -76,63 +76,41 @@ Deno.serve(async (req: Request) => {
 
       await supabase.from("notes").update({ status: "processing" }).eq("id", note_id).eq("user_id", user.id);
 
+      const systemPrompt = `You are a student note-reading assistant. Given an image of notes, respond with ONLY valid JSON (no markdown, no code fences) in this exact shape:
+{"title":"<5 words max>","summary":"<2-3 sentences>","raw_text":"<full verbatim transcription preserving structure>"}`;
+
       let rawText = "";
+      let summary = "";
+      let title = "Untitled Note";
+
       try {
-        rawText = await callOpenAI(
+        const result = await callOpenAI(
           openaiKey,
           [
             {
               role: "user",
               content: [
-                {
-                  type: "text",
-                  text: "You are an OCR assistant. Extract ALL text from this image exactly as written, preserving structure (headings, bullet points, numbered lists). Output only the extracted text with no commentary.",
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mime_type};base64,${image_base64}` },
-                },
+                { type: "text", text: systemPrompt },
+                { type: "image_url", image_url: { url: `data:${mime_type};base64,${image_base64}`, detail: "high" } },
               ],
             },
           ],
           "gpt-4o",
           4096,
         );
+        const parsed = JSON.parse(result.trim());
+        rawText = parsed.raw_text ?? result;
+        summary = parsed.summary ?? "";
+        title = parsed.title ? parsed.title.replace(/^["']|["']$/g, "").trim() : "Untitled Note";
       } catch (e) {
         await supabase.from("notes").update({ status: "error" }).eq("id", note_id).eq("user_id", user.id);
         return json({ error: String(e) }, 500);
       }
 
-      // Generate a brief summary
-      const summary = await callOpenAI(
-        openaiKey,
-        [
-          {
-            role: "user",
-            content: `Summarize the following notes in 2-3 sentences, capturing the main topic and key points:\n\n${rawText}`,
-          },
-        ],
-        "gpt-4o",
-        512,
-      ).catch(() => "");
-
-      // Auto-generate a title
-      const title = await callOpenAI(
-        openaiKey,
-        [
-          {
-            role: "user",
-            content: `Give a short title (5 words max) for notes about:\n${rawText.slice(0, 400)}`,
-          },
-        ],
-        "gpt-4o-mini",
-        64,
-      ).catch(() => "Untitled Note");
-
       await supabase.from("notes").update({
         raw_text: rawText,
         summary: summary || null,
-        title: title.replace(/^["']|["']$/g, "").trim(),
+        title,
         status: "ready",
       }).eq("id", note_id).eq("user_id", user.id);
 

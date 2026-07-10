@@ -24,9 +24,25 @@ export function useEvents() {
 
   const addEvent = async (event: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return null;
+    // datetime-local inputs produce "YYYY-MM-DDTHH:mm" with no timezone.
+    // Append the local UTC offset so Postgres stores the correct UTC value.
+    const withTz = (dt: string) => {
+      if (!dt || dt.includes('+') || dt.includes('Z') || dt.endsWith('z')) return dt;
+      const off = -new Date().getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+      const mm = String(Math.abs(off) % 60).padStart(2, '0');
+      return `${dt}:00${sign}${hh}:${mm}`;
+    };
+    const payload = {
+      ...event,
+      user_id: user.id,
+      start_time: withTz(event.start_time),
+      end_time: withTz(event.end_time),
+    };
     const { data, error } = await supabase
       .from('events')
-      .insert({ ...event, user_id: user.id })
+      .insert(payload)
       .select()
       .single();
     if (!error && data) {

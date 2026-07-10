@@ -3,13 +3,13 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const NAV_ITEMS = [
-  { id: 'dashboard',      label: 'Dashboard',    icon: LayoutDashboard },
-  { id: 'planner',        label: 'Daily Planner', icon: CalendarDays },
-  { id: 'leaderboard',   label: 'Leaderboard',  icon: Trophy },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'notes',         label: 'Notes Digestor', icon: BookMarked },
-  { id: 'chat',          label: 'Atlas Chat',    icon: MessageSquare },
-  { id: 'profile',       label: 'Profile',        icon: User },
+  { id: 'dashboard',      label: 'Dashboard',      icon: LayoutDashboard },
+  { id: 'planner',        label: 'Daily Planner',  icon: CalendarDays },
+  { id: 'chat',           label: 'Atlas Chat',     icon: MessageSquare },
+  { id: 'notes',          label: 'Notes Digestor', icon: BookMarked },
+  { id: 'leaderboard',   label: 'Leaderboard',    icon: Trophy },
+  { id: 'notifications', label: 'Notifications',  icon: Bell },
+  { id: 'profile',        label: 'Profile',        icon: User },
 ] as const;
 
 export default function Sidebar() {

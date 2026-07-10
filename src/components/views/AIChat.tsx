@@ -79,7 +79,14 @@ export default function AIChat() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchMessages(); }, [fetchMessages]);
+  // Only fetch once on initial mount. Never refetch on re-renders/tab switches.
+  const hasFetched = useRef(false);
+  useEffect(() => {
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchMessages();
+    }
+  }, [fetchMessages]);
 
   useEffect(() => {
     if (tab === 'chat') scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,12 +125,15 @@ export default function AIChat() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setMessages(prev => [...prev, {
-        id: `ai-${Date.now()}`, role: 'assistant', content: data.answer, created_at: new Date().toISOString(),
-      }]);
+      // Replace temp message with the real user message + assistant reply
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== tempId),
+        { id: `user-${Date.now()}`, role: 'user' as const, content, created_at: new Date().toISOString() },
+        { id: `ai-${Date.now()}`, role: 'assistant' as const, content: data.answer, created_at: new Date().toISOString() },
+      ]);
     } catch (e) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }

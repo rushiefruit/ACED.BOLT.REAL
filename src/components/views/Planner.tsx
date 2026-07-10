@@ -118,15 +118,14 @@ export default function Planner() {
     setGcalStatus('connecting');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-auth`,
-        {
-          headers: {
-            Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+      const authFnUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-auth`);
+      authFnUrl.searchParams.set('app_url', window.location.origin);
+      const res = await fetch(authFnUrl.toString(), {
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-      );
+      });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       window.location.href = data.url;

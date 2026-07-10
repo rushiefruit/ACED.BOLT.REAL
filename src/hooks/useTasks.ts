@@ -24,9 +24,18 @@ export function useTasks() {
 
   const addTask = async (task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'completed_at' | 'subject'>) => {
     if (!user) return null;
+    // Attach local timezone offset to datetime-local strings (no TZ suffix)
+    const withTz = (dt: string) => {
+      if (!dt || dt.includes('+') || dt.endsWith('Z') || dt.endsWith('z')) return dt;
+      const off = -new Date().getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+      const mm = String(Math.abs(off) % 60).padStart(2, '0');
+      return `${dt}:00${sign}${hh}:${mm}`;
+    };
     const { data, error } = await supabase
       .from('tasks')
-      .insert({ ...task, user_id: user.id })
+      .insert({ ...task, user_id: user.id, due_date: withTz(task.due_date) })
       .select('*, subject:subjects(*)')
       .single();
     if (!error && data) {
@@ -36,8 +45,17 @@ export function useTasks() {
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
+    const withTz = (dt: string) => {
+      if (!dt || dt.includes('+') || dt.endsWith('Z') || dt.endsWith('z')) return dt;
+      const off = -new Date().getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+      const mm = String(Math.abs(off) % 60).padStart(2, '0');
+      return `${dt}:00${sign}${hh}:${mm}`;
+    };
     const payload: Record<string, unknown> = { ...updates };
     if (updates.due_date) {
+      payload.due_date = withTz(updates.due_date);
       payload.notified_24h = false;
       payload.notified_1h = false;
     }

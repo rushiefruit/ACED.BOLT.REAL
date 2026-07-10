@@ -36,9 +36,15 @@ Deno.serve(async (req: Request) => {
 
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-callback`;
 
-    // Capture the app's origin from the request so the callback can redirect back
+    // Capture the app's origin so the callback can redirect back.
+    // Priority: explicit query param > Origin header > Referer header > APP_URL env.
+    const reqUrl = new URL(req.url);
+    const paramApp = reqUrl.searchParams.get("app_url");
     const origin = req.headers.get("Origin") ?? req.headers.get("Referer") ?? "";
-    const appUrl = origin ? new URL(origin).origin : (Deno.env.get("APP_URL") ?? "");
+    const appUrl = paramApp
+      ?? (origin ? new URL(origin).origin : null)
+      ?? Deno.env.get("APP_URL")
+      ?? "";
 
     const state = btoa(JSON.stringify({ userId: user.id, appUrl, ts: Date.now() }));
 
