@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 const VIEW_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   planner: 'Daily Planner',
-  advisor: 'AI Advisor',
+  chat: 'Atlas Chat',
+  notes: 'Notes Digestor',
   leaderboard: 'Leaderboard',
   notifications: 'Notifications',
   profile: 'Profile',

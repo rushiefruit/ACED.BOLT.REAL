@@ -228,7 +228,7 @@ export default function Dashboard() {
         <h3 className="font-display font-semibold text-surface-100 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
-            { label: 'Study Plan', icon: Brain, color: 'text-brand-400', bg: 'bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/20', view: 'advisor' as const },
+            { label: 'Study Plan', icon: Brain, color: 'text-brand-400', bg: 'bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/20', view: 'chat' as const },
             { label: 'Add Task', icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20', view: 'planner' as const },
             { label: 'Leaderboard', icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20', view: 'leaderboard' as const },
           ].map(({ label, icon: Icon, color, bg, view }) => (
