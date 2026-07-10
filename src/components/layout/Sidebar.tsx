@@ -1,4 +1,4 @@
-import { LayoutDashboard, CalendarDays, Brain, Trophy, Bell, User, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Brain, Trophy, Bell, User, LogOut, X, BookMarked } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -8,7 +8,8 @@ const NAV_ITEMS = [
   { id: 'advisor',        label: 'AI Advisor',   icon: Brain },
   { id: 'leaderboard',   label: 'Leaderboard',  icon: Trophy },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'profile',       label: 'Profile',       icon: User },
+  { id: 'notes',         label: 'Notes Digestor', icon: BookMarked },
+  { id: 'profile',       label: 'Profile',        icon: User },
 ] as const;
 
 export default function Sidebar() {

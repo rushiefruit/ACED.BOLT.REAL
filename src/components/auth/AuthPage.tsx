@@ -53,7 +53,7 @@ export default function AuthPage() {
       <div className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 bg-surface-900 border-r border-surface-800 p-10">
         <div>
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E' }}>
               <Zap className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-display font-bold text-white">Aced</span>
@@ -63,7 +63,7 @@ export default function AuthPage() {
             <div>
               <h1 className="text-4xl font-display font-bold text-white leading-tight mb-4">
                 Your academic life,{' '}
-                <span className="text-gradient-brand">supercharged.</span>
+                <span style={{ color: '#22C55E' }}>supercharged.</span>
               </h1>
               <p className="text-surface-400 text-lg leading-relaxed">
                 AI-powered planning, gamified progress, and smart reminders — all in one place.
@@ -96,7 +96,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md animate-slide-up">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E' }}>
               <Zap className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-display font-bold text-white">Aced</span>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-type ActiveView = 'dashboard' | 'planner' | 'advisor' | 'leaderboard' | 'notifications' | 'profile';
+type ActiveView = 'dashboard' | 'planner' | 'advisor' | 'leaderboard' | 'notifications' | 'profile' | 'notes';
 
 interface AppContextValue {
   activeView: ActiveView;

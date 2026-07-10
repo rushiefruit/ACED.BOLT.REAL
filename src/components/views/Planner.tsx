@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Trash2, CheckCircle2, Circle, BookOpen, CalendarDays, X,
   ChevronLeft, ChevronRight, Filter, Edit3,
@@ -25,6 +25,9 @@ const PRIORITY_META: Record<TaskPriority, { label: string; color: string }> = {
 };
 
 const EVENT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#f43f5e', '#06b6d4', '#ec4899'];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -34,12 +37,35 @@ function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function startOfWeek(date: Date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, n: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function fmtHour(h: number) {
+  if (h === 0) return '12 AM';
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
+
+type CalView = 'day' | 'week' | 'month';
+
 export default function Planner() {
   const { tasks, toggleTaskComplete, addTask, updateTask, deleteTask } = useTasks();
   const { events, addEvent, deleteEvent } = useEvents();
   const { subjects, addSubject } = useSubjects();
 
   const [tab, setTab] = useState<'tasks' | 'calendar' | 'events'>('tasks');
+  const [calView, setCalView] = useState<CalView>('month');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -47,24 +73,20 @@ export default function Planner() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Task form
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', type: 'homework' as TaskType,
     due_date: '', priority: 'medium' as TaskPriority,
     estimated_minutes: 30, subject_id: '',
   });
 
-  // Event form
   const [eventForm, setEventForm] = useState({
     title: '', type: 'activity' as EventType,
     start_time: '', end_time: '', location: '', color: EVENT_COLORS[0],
   });
 
-  // Subject form
   const [subjectForm, setSubjectForm] = useState({ name: '', color: '#3b82f6', teacher: '' });
-
   const [saving, setSaving] = useState(false);
 
   const filteredTasks = useMemo(() => {
@@ -103,16 +125,9 @@ export default function Planner() {
     e.preventDefault();
     setSaving(true);
     if (editingTask) {
-      await updateTask(editingTask.id, {
-        ...taskForm,
-        subject_id: taskForm.subject_id || null,
-      });
+      await updateTask(editingTask.id, { ...taskForm, subject_id: taskForm.subject_id || null });
     } else {
-      await addTask({
-        ...taskForm,
-        subject_id: taskForm.subject_id || null,
-        status: 'pending',
-      });
+      await addTask({ ...taskForm, subject_id: taskForm.subject_id || null, status: 'pending' });
     }
     setShowTaskModal(false);
     setEditingTask(null);
@@ -138,24 +153,44 @@ export default function Planner() {
     setSaving(false);
   };
 
-  // Calendar helpers
+  // --- Calendar nav ---
   const calYear = calDate.getFullYear();
   const calMonth = calDate.getMonth();
   const daysInMonth = getDaysInMonth(calYear, calMonth);
   const firstDayOfMonth = new Date(calYear, calMonth, 1).getDay();
   const today = new Date();
+  const weekStart = startOfWeek(calDate);
 
-  const getTasksForDay = (day: number) => {
-    const d = new Date(calYear, calMonth, day);
-    return tasks.filter(t => isSameDay(new Date(t.due_date), d));
+  const navigatePrev = () => {
+    if (calView === 'month') setCalDate(new Date(calYear, calMonth - 1, 1));
+    else if (calView === 'week') setCalDate(addDays(calDate, -7));
+    else setCalDate(addDays(calDate, -1));
   };
 
-  const getEventsForDay = (day: number) => {
-    const d = new Date(calYear, calMonth, day);
-    return events.filter(e => isSameDay(new Date(e.start_time), d));
+  const navigateNext = () => {
+    if (calView === 'month') setCalDate(new Date(calYear, calMonth + 1, 1));
+    else if (calView === 'week') setCalDate(addDays(calDate, 7));
+    else setCalDate(addDays(calDate, 1));
   };
 
-  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const navigateToday = () => setCalDate(new Date());
+
+  const calTitle = () => {
+    if (calView === 'month') return `${MONTH_NAMES[calMonth]} ${calYear}`;
+    if (calView === 'week') {
+      const end = addDays(weekStart, 6);
+      if (weekStart.getMonth() === end.getMonth())
+        return `${MONTH_NAMES[weekStart.getMonth()]} ${weekStart.getDate()} – ${end.getDate()}, ${weekStart.getFullYear()}`;
+      return `${MONTH_NAMES[weekStart.getMonth()]} ${weekStart.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${weekStart.getFullYear()}`;
+    }
+    return calDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const getItemsForDay = (date: Date) => {
+    const dayTasks = tasks.filter(t => isSameDay(new Date(t.due_date), date));
+    const dayEvents = events.filter(e => isSameDay(new Date(e.start_time), date));
+    return { dayTasks, dayEvents };
+  };
 
   return (
     <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
@@ -196,7 +231,6 @@ export default function Planner() {
       {/* Tasks tab */}
       {tab === 'tasks' && (
         <div className="space-y-4">
-          {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-4 h-4 text-surface-500" />
             <div className="flex gap-1 flex-wrap">
@@ -249,7 +283,6 @@ export default function Planner() {
                 const pri = PRIORITY_META[task.priority];
                 const isCompleted = task.status === 'completed';
                 const dueDate = new Date(task.due_date);
-                const today = new Date();
                 const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / 86400000);
                 const isOverdue = diffDays < 0 && !isCompleted;
 
@@ -282,9 +315,7 @@ export default function Planner() {
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className={`badge border ${meta.bg} ${meta.color}`}>{meta.label}</span>
                         <span className={`text-xs font-medium ${pri.color}`}>{pri.label}</span>
-                        {task.subject && (
-                          <span className="text-xs text-surface-500">{task.subject.name}</span>
-                        )}
+                        {task.subject && <span className="text-xs text-surface-500">{task.subject.name}</span>}
                         <span className="text-xs text-surface-500">{task.estimated_minutes}m</span>
                       </div>
                     </div>
@@ -301,16 +332,10 @@ export default function Planner() {
                          diffDays === 1 ? 'Tomorrow' :
                          `${diffDays}d left`}
                       </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                        className="text-surface-600 hover:text-rose-400 transition-colors"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="text-surface-600 hover:text-rose-400 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }}
-                        className="text-surface-600 hover:text-brand-400 transition-colors"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }} className="text-surface-600 hover:text-brand-400 transition-colors">
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -324,108 +349,148 @@ export default function Planner() {
 
       {/* Calendar tab */}
       {tab === 'calendar' && (
-        <div className="glass-card p-5">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <button onClick={() => setCalDate(new Date(calYear, calMonth - 1, 1))} className="btn-ghost p-2">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <h3 className="font-display font-semibold text-surface-100">
-              {MONTH_NAMES[calMonth]} {calYear}
-            </h3>
-            <button onClick={() => setCalDate(new Date(calYear, calMonth + 1, 1))} className="btn-ghost p-2">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          {/* Day headers */}
-          <div className="grid grid-cols-7 mb-2">
-            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-              <div key={d} className="text-center text-xs font-medium text-surface-500 py-1">{d}</div>
-            ))}
-          </div>
-          {/* Day grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[84px]" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dayTasks = getTasksForDay(day);
-              const dayEvents = getEventsForDay(day);
-              const isToday = isSameDay(new Date(calYear, calMonth, day), today);
-              const isSelected = selectedDay === day;
-              const items = [
-                ...dayEvents.map(e => ({ id: e.id, label: e.title, color: e.color, kind: 'event' as const, done: false })),
-                ...dayTasks.map(t => ({
-                  id: t.id,
-                  label: t.title,
-                  color: t.status === 'completed' ? '#475569' : t.type === 'exam' ? '#f43f5e' : '#f59e0b',
-                  kind: 'task' as const,
-                  done: t.status === 'completed',
-                })),
-              ];
-              const shown = items.slice(0, 2);
-              const overflow = items.length - shown.length;
-
-              return (
+        <div className="glass-card overflow-hidden">
+          {/* Calendar toolbar */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-surface-800">
+            <div className="flex items-center gap-2">
+              <button onClick={navigatePrev} className="btn-ghost p-2">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button onClick={navigateNext} className="btn-ghost p-2">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button onClick={navigateToday} className="btn-ghost text-xs px-3 py-1.5 ml-1">
+                Today
+              </button>
+              <h3 className="font-display font-semibold text-surface-100 ml-2 text-sm sm:text-base">
+                {calTitle()}
+              </h3>
+            </div>
+            {/* View switcher */}
+            <div className="flex bg-surface-900 border border-surface-700 rounded-lg p-0.5 gap-0.5">
+              {(['day', 'week', 'month'] as CalView[]).map(v => (
                 <button
-                  key={day}
-                  onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`min-h-[84px] p-1.5 rounded-lg flex flex-col items-stretch justify-start transition-all cursor-pointer border text-left ${
-                    isSelected
-                      ? 'bg-brand-500/25 border-brand-500 ring-1 ring-brand-500/40'
-                      : isToday
-                        ? 'bg-brand-500/15 border-brand-500/40 hover:bg-brand-500/25'
-                        : 'border-transparent hover:border-surface-700 hover:bg-surface-800/60'
+                  key={v}
+                  onClick={() => setCalView(v)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md capitalize transition-all duration-200 ${
+                    calView === v
+                      ? 'bg-surface-700 text-surface-100'
+                      : 'text-surface-500 hover:text-surface-300'
                   }`}
                 >
-                  <span className={`text-xs font-medium mb-1 self-end ${isSelected ? 'text-brand-200' : isToday ? 'text-brand-300' : 'text-surface-300'}`}>
-                    {day}
-                  </span>
-                  <div className="space-y-1 overflow-hidden">
-                    {shown.map(item => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] leading-tight truncate bg-surface-900/60"
-                        title={item.label}
-                      >
-                        <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className={`truncate ${item.done ? 'line-through text-surface-600' : 'text-surface-200'}`}>
-                          {item.label}
-                        </span>
-                      </div>
-                    ))}
-                    {overflow > 0 && (
-                      <div className="text-[10px] text-surface-500 px-1">+{overflow} more</div>
-                    )}
-                  </div>
+                  {v}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-surface-800">
-            {[
-              { color: 'bg-rose-500', label: 'Exam' },
-              { color: 'bg-amber-400', label: 'Task' },
-              { color: 'bg-slate-500', label: 'Completed' },
-              { color: 'bg-blue-500', label: 'Event' },
-            ].map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${color}`} />
-                <span className="text-xs text-surface-500">{label}</span>
+
+          {/* Month view */}
+          {calView === 'month' && (
+            <div className="p-4">
+              <div className="grid grid-cols-7 mb-2">
+                {DAY_ABBR.map(d => (
+                  <div key={d} className="text-center text-xs font-medium text-surface-500 py-1">{d}</div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                  <div key={`empty-${i}`} className="min-h-[84px]" />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const date = new Date(calYear, calMonth, day);
+                  const { dayTasks, dayEvents } = getItemsForDay(date);
+                  const isToday = isSameDay(date, today);
+                  const isSelected = selectedDay ? isSameDay(date, selectedDay) : false;
+                  const items = [
+                    ...dayEvents.map(e => ({ id: e.id, label: e.title, color: e.color, done: false })),
+                    ...dayTasks.map(t => ({
+                      id: t.id, label: t.title,
+                      color: t.status === 'completed' ? '#475569' : t.type === 'exam' ? '#f43f5e' : '#f59e0b',
+                      done: t.status === 'completed',
+                    })),
+                  ];
+                  const shown = items.slice(0, 2);
+                  const overflow = items.length - shown.length;
+
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDay(isSelected ? null : date)}
+                      className={`min-h-[84px] p-1.5 rounded-lg flex flex-col items-stretch justify-start transition-all border text-left ${
+                        isSelected
+                          ? 'bg-brand-500/25 border-brand-500 ring-1 ring-brand-500/40'
+                          : isToday
+                            ? 'bg-brand-500/15 border-brand-500/40 hover:bg-brand-500/25'
+                            : 'border-transparent hover:border-surface-700 hover:bg-surface-800/60'
+                      }`}
+                    >
+                      <span className={`text-xs font-medium mb-1 self-end ${isSelected ? 'text-brand-200' : isToday ? 'text-brand-300' : 'text-surface-300'}`}>
+                        {day}
+                      </span>
+                      <div className="space-y-1 overflow-hidden">
+                        {shown.map(item => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] leading-tight truncate bg-surface-900/60"
+                            title={item.label}
+                          >
+                            <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className={`truncate ${item.done ? 'line-through text-surface-600' : 'text-surface-200'}`}>{item.label}</span>
+                          </div>
+                        ))}
+                        {overflow > 0 && <div className="text-[10px] text-surface-500 px-1">+{overflow} more</div>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-surface-800">
+                {[
+                  { color: 'bg-rose-500', label: 'Exam' },
+                  { color: 'bg-amber-400', label: 'Task' },
+                  { color: 'bg-slate-500', label: 'Completed' },
+                  { color: 'bg-blue-500', label: 'Event' },
+                ].map(({ color, label }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${color}`} />
+                    <span className="text-xs text-surface-500">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Week view */}
+          {calView === 'week' && (
+            <WeekView
+              weekStart={weekStart}
+              tasks={tasks}
+              events={events}
+              today={today}
+              onDayClick={(date) => setSelectedDay(isSameDay(date, selectedDay ?? new Date(0)) ? null : date)}
+              selectedDay={selectedDay}
+            />
+          )}
+
+          {/* Day view */}
+          {calView === 'day' && (
+            <DayView
+              date={calDate}
+              tasks={tasks}
+              events={events}
+              today={today}
+            />
+          )}
         </div>
       )}
 
-      {/* Selected day detail panel */}
-      {tab === 'calendar' && selectedDay !== null && (
+      {/* Day detail panel (month + week views) */}
+      {tab === 'calendar' && selectedDay !== null && calView !== 'day' && (
         <DayDetailPanel
-          date={new Date(calYear, calMonth, selectedDay)}
-          tasks={getTasksForDay(selectedDay)}
-          events={getEventsForDay(selectedDay)}
+          date={selectedDay}
+          tasks={tasks.filter(t => isSameDay(new Date(t.due_date), selectedDay))}
+          events={events.filter(e => isSameDay(new Date(e.start_time), selectedDay))}
           subjects={subjects}
           onClose={() => setSelectedDay(null)}
           onAddTask={(payload) => { addTask(payload); }}
@@ -489,34 +554,18 @@ export default function Planner() {
         <form onSubmit={handleAddTask} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Task Title *</label>
-            <input
-              value={taskForm.title}
-              onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
-              placeholder="e.g. Math homework ch. 5"
-              className="input-field"
-              required
-            />
+            <input value={taskForm.title} onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Math homework ch. 5" className="input-field" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Type</label>
-              <select
-                value={taskForm.type}
-                onChange={e => setTaskForm(p => ({ ...p, type: e.target.value as TaskType }))}
-                className="select-field"
-              >
-                {Object.entries(TASK_TYPE_META).map(([v, m]) => (
-                  <option key={v} value={v}>{m.label}</option>
-                ))}
+              <select value={taskForm.type} onChange={e => setTaskForm(p => ({ ...p, type: e.target.value as TaskType }))} className="select-field">
+                {Object.entries(TASK_TYPE_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Priority</label>
-              <select
-                value={taskForm.priority}
-                onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as TaskPriority }))}
-                className="select-field"
-              >
+              <select value={taskForm.priority} onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as TaskPriority }))} className="select-field">
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
@@ -526,46 +575,23 @@ export default function Planner() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Due Date *</label>
-              <input
-                type="datetime-local"
-                value={taskForm.due_date}
-                onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value }))}
-                className="input-field"
-                required
-              />
+              <input type="datetime-local" value={taskForm.due_date} onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value }))} className="input-field" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Est. Minutes</label>
-              <input
-                type="number"
-                value={taskForm.estimated_minutes}
-                onChange={e => setTaskForm(p => ({ ...p, estimated_minutes: Number(e.target.value) }))}
-                min={5}
-                max={480}
-                className="input-field"
-              />
+              <input type="number" value={taskForm.estimated_minutes} onChange={e => setTaskForm(p => ({ ...p, estimated_minutes: Number(e.target.value) }))} min={5} max={480} className="input-field" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Subject</label>
-            <select
-              value={taskForm.subject_id}
-              onChange={e => setTaskForm(p => ({ ...p, subject_id: e.target.value }))}
-              className="select-field"
-            >
+            <select value={taskForm.subject_id} onChange={e => setTaskForm(p => ({ ...p, subject_id: e.target.value }))} className="select-field">
               <option value="">No subject</option>
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Notes (optional)</label>
-            <textarea
-              value={taskForm.description}
-              onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
-              placeholder="Any additional details..."
-              rows={2}
-              className="input-field resize-none"
-            />
+            <textarea value={taskForm.description} onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))} placeholder="Any additional details..." rows={2} className="input-field resize-none" />
           </div>
           <button type="submit" disabled={saving} className="btn-primary w-full">
             {saving ? 'Saving...' : editingTask ? 'Save Changes' : 'Add Task'}
@@ -578,22 +604,12 @@ export default function Planner() {
         <form onSubmit={handleAddEvent} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Event Title *</label>
-            <input
-              value={eventForm.title}
-              onChange={e => setEventForm(p => ({ ...p, title: e.target.value }))}
-              placeholder="e.g. Soccer practice"
-              className="input-field"
-              required
-            />
+            <input value={eventForm.title} onChange={e => setEventForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Soccer practice" className="input-field" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Type</label>
-              <select
-                value={eventForm.type}
-                onChange={e => setEventForm(p => ({ ...p, type: e.target.value as EventType }))}
-                className="select-field"
-              >
+              <select value={eventForm.type} onChange={e => setEventForm(p => ({ ...p, type: e.target.value as EventType }))} className="select-field">
                 <option value="class">Class</option>
                 <option value="activity">Activity</option>
                 <option value="sport">Sport</option>
@@ -604,13 +620,9 @@ export default function Planner() {
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Color</label>
               <div className="flex items-center gap-2 mt-1">
                 {EVENT_COLORS.map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setEventForm(p => ({ ...p, color: c }))}
+                  <button key={c} type="button" onClick={() => setEventForm(p => ({ ...p, color: c }))}
                     className={`w-6 h-6 rounded-full transition-all ${eventForm.color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-surface-900' : ''}`}
-                    style={{ backgroundColor: c }}
-                  />
+                    style={{ backgroundColor: c }} />
                 ))}
               </div>
             </div>
@@ -618,37 +630,18 @@ export default function Planner() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">Start *</label>
-              <input
-                type="datetime-local"
-                value={eventForm.start_time}
-                onChange={e => setEventForm(p => ({ ...p, start_time: e.target.value }))}
-                className="input-field"
-                required
-              />
+              <input type="datetime-local" value={eventForm.start_time} onChange={e => setEventForm(p => ({ ...p, start_time: e.target.value }))} className="input-field" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1.5">End *</label>
-              <input
-                type="datetime-local"
-                value={eventForm.end_time}
-                onChange={e => setEventForm(p => ({ ...p, end_time: e.target.value }))}
-                className="input-field"
-                required
-              />
+              <input type="datetime-local" value={eventForm.end_time} onChange={e => setEventForm(p => ({ ...p, end_time: e.target.value }))} className="input-field" required />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Location (optional)</label>
-            <input
-              value={eventForm.location}
-              onChange={e => setEventForm(p => ({ ...p, location: e.target.value }))}
-              placeholder="e.g. Gym, Room 204"
-              className="input-field"
-            />
+            <input value={eventForm.location} onChange={e => setEventForm(p => ({ ...p, location: e.target.value }))} placeholder="e.g. Gym, Room 204" className="input-field" />
           </div>
-          <button type="submit" disabled={saving} className="btn-primary w-full">
-            {saving ? 'Adding...' : 'Add Event'}
-          </button>
+          <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? 'Adding...' : 'Add Event'}</button>
         </form>
       </Modal>
 
@@ -671,34 +664,17 @@ export default function Planner() {
           <hr className="border-surface-800" />
           <form onSubmit={handleAddSubject} className="space-y-3">
             <h4 className="text-sm font-semibold text-surface-300">Add Subject</h4>
-            <input
-              value={subjectForm.name}
-              onChange={e => setSubjectForm(p => ({ ...p, name: e.target.value }))}
-              placeholder="Subject name (e.g. Biology)"
-              className="input-field"
-              required
-            />
-            <input
-              value={subjectForm.teacher}
-              onChange={e => setSubjectForm(p => ({ ...p, teacher: e.target.value }))}
-              placeholder="Teacher name (optional)"
-              className="input-field"
-            />
+            <input value={subjectForm.name} onChange={e => setSubjectForm(p => ({ ...p, name: e.target.value }))} placeholder="Subject name (e.g. Biology)" className="input-field" required />
+            <input value={subjectForm.teacher} onChange={e => setSubjectForm(p => ({ ...p, teacher: e.target.value }))} placeholder="Teacher name (optional)" className="input-field" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-surface-400">Color:</span>
               {EVENT_COLORS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setSubjectForm(p => ({ ...p, color: c }))}
+                <button key={c} type="button" onClick={() => setSubjectForm(p => ({ ...p, color: c }))}
                   className={`w-6 h-6 rounded-full transition-all ${subjectForm.color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-surface-900' : ''}`}
-                  style={{ backgroundColor: c }}
-                />
+                  style={{ backgroundColor: c }} />
               ))}
             </div>
-            <button type="submit" disabled={saving} className="btn-primary w-full">
-              {saving ? 'Adding...' : 'Add Subject'}
-            </button>
+            <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? 'Adding...' : 'Add Subject'}</button>
           </form>
         </div>
       </Modal>
@@ -706,14 +682,256 @@ export default function Planner() {
   );
 }
 
+// ─── Week View ────────────────────────────────────────────────────────────────
+
+interface WeekViewProps {
+  weekStart: Date;
+  tasks: Task[];
+  events: any[];
+  today: Date;
+  onDayClick: (date: Date) => void;
+  selectedDay: Date | null;
+}
+
+function WeekView({ weekStart, tasks, events, today, onDayClick, selectedDay }: WeekViewProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const HOUR_HEIGHT = 56;
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+    }
+  }, []);
+
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const nowMinutes = today.getHours() * 60 + today.getMinutes();
+
+  return (
+    <div className="flex flex-col">
+      {/* Day header row */}
+      <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-surface-800">
+        <div className="border-r border-surface-800" />
+        {days.map((day, i) => {
+          const isToday = isSameDay(day, today);
+          const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
+          return (
+            <button
+              key={i}
+              onClick={() => onDayClick(day)}
+              className={`py-3 flex flex-col items-center gap-0.5 border-r border-surface-800 last:border-r-0 transition-colors ${
+                isSelected ? 'bg-brand-500/15' : 'hover:bg-surface-800/50'
+              }`}
+            >
+              <span className="text-[10px] font-medium text-surface-500 uppercase tracking-wide">{DAY_ABBR[day.getDay()]}</span>
+              <span className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+                isToday ? 'bg-brand-500 text-white' : isSelected ? 'text-brand-300' : 'text-surface-200'
+              }`}>
+                {day.getDate()}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Scrollable time grid */}
+      <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: '520px' }}>
+        <div className="relative grid grid-cols-[56px_repeat(7,1fr)]">
+          {/* Hour labels */}
+          <div className="col-start-1">
+            {HOURS.map(h => (
+              <div key={h} className="border-r border-surface-800 pr-2 flex items-start justify-end" style={{ height: HOUR_HEIGHT }}>
+                <span className="text-[10px] text-surface-600 -translate-y-2">{h === 0 ? '' : fmtHour(h)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns */}
+          {days.map((day, di) => {
+            const dayEvents = events.filter(e => isSameDay(new Date(e.start_time), day));
+            const dayTasks = tasks.filter(t => isSameDay(new Date(t.due_date), day));
+            const isToday = isSameDay(day, today);
+
+            return (
+              <div key={di} className="relative border-r border-surface-800 last:border-r-0">
+                {/* Hour rows */}
+                {HOURS.map(h => (
+                  <div key={h} className={`border-b border-surface-800/60 ${h % 2 === 0 ? '' : 'bg-surface-900/20'}`} style={{ height: HOUR_HEIGHT }} />
+                ))}
+
+                {/* Today line */}
+                {isToday && (
+                  <div
+                    className="absolute left-0 right-0 z-20 pointer-events-none"
+                    style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-rose-500 -ml-1 flex-shrink-0" />
+                      <div className="flex-1 h-px bg-rose-500" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Events */}
+                {dayEvents.map(ev => {
+                  const start = new Date(ev.start_time);
+                  const end = new Date(ev.end_time);
+                  const startMin = start.getHours() * 60 + start.getMinutes();
+                  const dur = Math.max(30, (end.getTime() - start.getTime()) / 60000);
+                  const top = (startMin / 60) * HOUR_HEIGHT;
+                  const height = (dur / 60) * HOUR_HEIGHT - 2;
+                  return (
+                    <div
+                      key={ev.id}
+                      className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 z-10 overflow-hidden cursor-default"
+                      style={{ top, height, backgroundColor: ev.color + '33', borderLeft: `3px solid ${ev.color}` }}
+                      title={ev.title}
+                    >
+                      <p className="text-[10px] font-medium leading-tight truncate" style={{ color: ev.color }}>{ev.title}</p>
+                      {height > 28 && (
+                        <p className="text-[9px] leading-tight truncate text-surface-400">
+                          {start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Tasks (due time as a pill) */}
+                {dayTasks.map(t => {
+                  const due = new Date(t.due_date);
+                  const dueMin = due.getHours() * 60 + due.getMinutes();
+                  const top = (dueMin / 60) * HOUR_HEIGHT;
+                  const color = t.status === 'completed' ? '#475569' : t.type === 'exam' ? '#f43f5e' : '#f59e0b';
+                  return (
+                    <div
+                      key={t.id}
+                      className="absolute left-0.5 right-0.5 z-10 px-1 py-0.5 rounded text-[10px] font-medium truncate cursor-default"
+                      style={{ top: top - 10, height: 20, backgroundColor: color + '22', borderLeft: `3px solid ${color}`, color }}
+                      title={t.title}
+                    >
+                      {t.title}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Day View ─────────────────────────────────────────────────────────────────
+
+interface DayViewProps {
+  date: Date;
+  tasks: Task[];
+  events: any[];
+  today: Date;
+}
+
+function DayView({ date, tasks, events, today }: DayViewProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const HOUR_HEIGHT = 64;
+  const isToday = isSameDay(date, today);
+  const nowMinutes = today.getHours() * 60 + today.getMinutes();
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+    }
+  }, [date]);
+
+  const dayEvents = events.filter(e => isSameDay(new Date(e.start_time), date));
+  const dayTasks = tasks.filter(t => isSameDay(new Date(t.due_date), date));
+
+  return (
+    <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: '560px' }}>
+      <div className="relative grid grid-cols-[64px_1fr]">
+        {/* Hour labels */}
+        <div>
+          {HOURS.map(h => (
+            <div key={h} className="border-r border-b border-surface-800 pr-2 flex items-start justify-end" style={{ height: HOUR_HEIGHT }}>
+              <span className="text-[10px] text-surface-600 -translate-y-2">{h === 0 ? '' : fmtHour(h)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Main column */}
+        <div className="relative">
+          {HOURS.map(h => (
+            <div key={h} className={`border-b border-surface-800/60 ${h % 2 === 0 ? '' : 'bg-surface-900/20'}`} style={{ height: HOUR_HEIGHT }} />
+          ))}
+
+          {/* Today line */}
+          {isToday && (
+            <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}>
+              <div className="flex items-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.5 flex-shrink-0" />
+                <div className="flex-1 h-px bg-rose-500" />
+              </div>
+            </div>
+          )}
+
+          {/* Events */}
+          {dayEvents.map(ev => {
+            const start = new Date(ev.start_time);
+            const end = new Date(ev.end_time);
+            const startMin = start.getHours() * 60 + start.getMinutes();
+            const dur = Math.max(30, (end.getTime() - start.getTime()) / 60000);
+            const top = (startMin / 60) * HOUR_HEIGHT;
+            const height = (dur / 60) * HOUR_HEIGHT - 2;
+            return (
+              <div
+                key={ev.id}
+                className="absolute left-1 right-1 rounded-lg px-2 py-1 z-10 overflow-hidden cursor-default"
+                style={{ top, height, backgroundColor: ev.color + '33', borderLeft: `4px solid ${ev.color}` }}
+              >
+                <p className="text-xs font-semibold leading-tight truncate" style={{ color: ev.color }}>{ev.title}</p>
+                {height > 36 && (
+                  <p className="text-[11px] text-surface-400 mt-0.5">
+                    {start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – {end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+                {ev.location && height > 52 && <p className="text-[10px] text-surface-500">{ev.location}</p>}
+              </div>
+            );
+          })}
+
+          {/* Tasks */}
+          {dayTasks.map(t => {
+            const due = new Date(t.due_date);
+            const dueMin = due.getHours() * 60 + due.getMinutes();
+            const top = (dueMin / 60) * HOUR_HEIGHT;
+            const color = t.status === 'completed' ? '#475569' : t.type === 'exam' ? '#f43f5e' : '#f59e0b';
+            return (
+              <div
+                key={t.id}
+                className="absolute left-1 right-1 z-10 px-2 py-1 rounded-lg text-xs font-medium cursor-default"
+                style={{ top: top - 16, height: 28, backgroundColor: color + '22', borderLeft: `4px solid ${color}`, color }}
+                title={t.title}
+              >
+                <span className="truncate block">{t.title}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Day Detail Panel ─────────────────────────────────────────────────────────
+
 interface DayDetailPanelProps {
   date: Date;
   tasks: Task[];
-  events: CalendarEvent[];
-  subjects: Subject[];
+  events: any[];
+  subjects: any[];
   onClose: () => void;
-  onAddTask: (payload: Omit<Task, 'id' | 'user_id' | 'created_at' | 'completed_at' | 'subject'>) => void;
-  onAddEvent: (payload: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at'>) => void;
+  onAddTask: (payload: any) => void;
+  onAddEvent: (payload: any) => void;
   onToggleTask: (id: string, isCompleted: boolean) => void;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
@@ -737,14 +955,9 @@ function DayDetailPanel({
     e.preventDefault();
     if (!taskTitle.trim()) return;
     onAddTask({
-      title: taskTitle.trim(),
-      type: 'homework',
-      priority: 'medium',
-      due_date: `${isoDate}T23:59`,
-      estimated_minutes: 30,
-      status: 'pending',
-      subject_id: null,
-      description: null,
+      title: taskTitle.trim(), type: 'homework', priority: 'medium',
+      due_date: `${isoDate}T23:59`, estimated_minutes: 30,
+      status: 'pending', subject_id: null, description: null,
     });
     setTaskTitle('');
     setAdding(null);
@@ -754,13 +967,9 @@ function DayDetailPanel({
     e.preventDefault();
     if (!eventTitle.trim()) return;
     onAddEvent({
-      title: eventTitle.trim(),
-      type: 'activity',
-      start_time: `${isoDate}T${eventStart}`,
-      end_time: `${isoDate}T${eventEnd}`,
-      location: null,
-      color: EVENT_COLORS[0],
-      is_recurring: false,
+      title: eventTitle.trim(), type: 'activity',
+      start_time: `${isoDate}T${eventStart}`, end_time: `${isoDate}T${eventEnd}`,
+      location: null, color: EVENT_COLORS[0], is_recurring: false,
     });
     setEventTitle('');
     setAdding(null);
@@ -791,33 +1000,19 @@ function DayDetailPanel({
         </div>
       </div>
 
-      {/* Quick add task */}
       {adding === 'task' && (
         <form onSubmit={submitTask} className="mb-3 p-3 rounded-xl bg-surface-800/60 border border-surface-700 animate-slide-up">
           <div className="flex gap-2">
-            <input
-              autoFocus
-              value={taskTitle}
-              onChange={e => setTaskTitle(e.target.value)}
-              placeholder="Task title..."
-              className="input-field flex-1 text-sm"
-            />
+            <input autoFocus value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Task title..." className="input-field flex-1 text-sm" />
             <button type="submit" className="btn-primary px-4 text-sm">Add</button>
             <button type="button" onClick={() => setAdding(null)} className="btn-ghost px-3 text-sm">Cancel</button>
           </div>
         </form>
       )}
 
-      {/* Quick add event */}
       {adding === 'event' && (
         <form onSubmit={submitEvent} className="mb-3 p-3 rounded-xl bg-surface-800/60 border border-surface-700 animate-slide-up space-y-2">
-          <input
-            autoFocus
-            value={eventTitle}
-            onChange={e => setEventTitle(e.target.value)}
-            placeholder="Event title..."
-            className="input-field text-sm"
-          />
+          <input autoFocus value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Event title..." className="input-field text-sm" />
           <div className="flex gap-2 items-center">
             <input type="time" value={eventStart} onChange={e => setEventStart(e.target.value)} className="input-field text-sm" />
             <span className="text-surface-500 text-xs">to</span>
@@ -828,7 +1023,6 @@ function DayDetailPanel({
         </form>
       )}
 
-      {/* Events list */}
       {events.length > 0 && (
         <div className="space-y-2 mb-3">
           {events.map(e => (
@@ -849,14 +1043,13 @@ function DayDetailPanel({
         </div>
       )}
 
-      {/* Tasks list */}
       {tasks.length > 0 ? (
         <div className="space-y-2">
           {tasks.map(t => {
             const done = t.status === 'completed';
             const meta = TASK_TYPE_META[t.type];
             return (
-                <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
+              <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-700/50 group">
                 <button onClick={() => onToggleTask(t.id, done)} className="flex-shrink-0">
                   {done
                     ? <CheckCircle2 className="w-5 h-5 text-brand-400 hover:text-surface-400 transition-colors" />

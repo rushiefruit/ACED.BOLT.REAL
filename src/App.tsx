@@ -10,7 +10,7 @@ import Advisor from './components/views/Advisor';
 import Leaderboard from './components/views/Leaderboard';
 import Notifications from './components/views/Notifications';
 import Profile from './components/views/Profile';
-import { useNotifications } from './hooks/useNotifications';
+import NotesDigestor from './components/views/NotesDigestor';
 
 function NotifSync() {
   const { unreadCount, fetchNotifications } = useNotifications();
@@ -70,6 +70,7 @@ function AppShell() {
           {activeView === 'advisor'       && <Advisor />}
           {activeView === 'leaderboard'   && <Leaderboard />}
           {activeView === 'notifications' && <Notifications />}
+          {activeView === 'notes'         && <NotesDigestor />}
           {activeView === 'profile'       && <Profile />}
         </main>
       </div>
